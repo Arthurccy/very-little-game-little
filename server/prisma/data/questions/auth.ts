@@ -82,7 +82,8 @@ export const authQuestions: SeedQuestionSet = {
     },
     {
       key: 'auth-cookie-csrf',
-      statement: 'Une authentification par cookie de session expose à quelle attaque que le header Authorization: Bearer évite ?',
+      statement:
+        'Une authentification par cookie de session expose à quelle attaque que le header Authorization: Bearer évite ?',
       correct: 'Le CSRF, car le navigateur joint le cookie automatiquement',
       wrong: ['Le XSS', 'L’injection SQL', 'Le clickjacking uniquement'],
       explanation:

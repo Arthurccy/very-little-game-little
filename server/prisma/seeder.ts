@@ -88,10 +88,7 @@ async function seedQuestions(prisma: PrismaClient, themeIds: Map<string, string>
         basePoints: q.basePoints ?? 100,
         isActive: true,
       };
-      const answers = [
-        { text: q.correct, isCorrect: true },
-        ...q.wrong.map((text) => ({ text, isCorrect: false })),
-      ];
+      const answers = [{ text: q.correct, isCorrect: true }, ...q.wrong.map((text) => ({ text, isCorrect: false }))];
       await prisma.$transaction(async (tx) => {
         const question = await tx.question.upsert({
           where: { seedKey: q.key },

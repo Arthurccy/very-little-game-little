@@ -13,7 +13,8 @@ export const securiteQuestions: SeedQuestionSet = {
         'L’injection de commandes SQL dans un formulaire',
         'L’affichage du site dans une iframe invisible',
       ],
-      explanation: 'Cross-Site Scripting : du code de l’attaquant s’exécute dans l’origine du site visé. Le second choix décrit le CSRF.',
+      explanation:
+        'Cross-Site Scripting : du code de l’attaquant s’exécute dans l’origine du site visé. Le second choix décrit le CSRF.',
       mdn: mdn('Glossary/Cross-site_scripting'),
       difficulty: 1,
     },
@@ -41,11 +42,7 @@ export const securiteQuestions: SeedQuestionSet = {
       key: 'sec-sql-injection',
       statement: 'Quelle est la défense principale contre l’injection SQL ?',
       correct: 'Les requêtes paramétrées (requêtes préparées)',
-      wrong: [
-        'Échapper les guillemets à la main',
-        'Masquer les messages d’erreur SQL',
-        'Utiliser POST au lieu de GET',
-      ],
+      wrong: ['Échapper les guillemets à la main', 'Masquer les messages d’erreur SQL', 'Utiliser POST au lieu de GET'],
       explanation:
         'Avec des paramètres liés, la donnée n’est jamais interprétée comme du SQL. L’échappement manuel est fragile ; masquer les erreurs ne corrige rien.',
       difficulty: 1,
@@ -54,11 +51,7 @@ export const securiteQuestions: SeedQuestionSet = {
       key: 'sec-csrf-token',
       statement: 'Comment fonctionne un jeton anti-CSRF ?',
       correct: 'Le serveur exige un secret imprévisible que seul le vrai site peut lire et renvoyer',
-      wrong: [
-        'Il chiffre le cookie de session',
-        'Il remplace HTTPS',
-        'Il empêche l’exécution de scripts inline',
-      ],
+      wrong: ['Il chiffre le cookie de session', 'Il remplace HTTPS', 'Il empêche l’exécution de scripts inline'],
       explanation:
         'Le site attaquant peut provoquer l’envoi des cookies, mais pas lire le jeton (same-origin policy), donc pas le renvoyer.',
       mdn: mdn('Glossary/CSRF'),
@@ -67,7 +60,7 @@ export const securiteQuestions: SeedQuestionSet = {
     {
       key: 'sec-clickjacking',
       statement: 'Quelle directive empêche un autre site d’afficher votre page dans une iframe (clickjacking) ?',
-      correct: 'Content-Security-Policy: frame-ancestors \'none\'',
+      correct: "Content-Security-Policy: frame-ancestors 'none'",
       wrong: ['X-XSS-Protection: 1', 'Referrer-Policy: no-referrer', 'Cross-Origin-Resource-Policy: same-site'],
       explanation:
         'frame-ancestors (ou l’ancien X-Frame-Options: DENY) interdit l’intégration. X-XSS-Protection est obsolète et sans rapport.',
@@ -97,12 +90,14 @@ export const securiteQuestions: SeedQuestionSet = {
         'Seulement pour les champs de mot de passe',
         'Seulement si le site n’est pas en HTTPS',
       ],
-      explanation: 'La validation client sert l’ergonomie. La sécurité repose sur le serveur (ici Zod), qui ne fait confiance à rien.',
+      explanation:
+        'La validation client sert l’ergonomie. La sécurité repose sur le serveur (ici Zod), qui ne fait confiance à rien.',
       difficulty: 1,
     },
     {
       key: 'sec-stored-xss',
-      statement: 'Un commentaire contenant <script> est enregistré puis affiché à tous les visiteurs. De quel type de XSS s’agit-il ?',
+      statement:
+        'Un commentaire contenant <script> est enregistré puis affiché à tous les visiteurs. De quel type de XSS s’agit-il ?',
       correct: 'XSS stocké (persistant)',
       wrong: ['XSS réfléchi', 'CSRF', 'Injection SQL'],
       explanation:
@@ -112,7 +107,8 @@ export const securiteQuestions: SeedQuestionSet = {
     },
     {
       key: 'sec-hsts',
-      statement: 'Quel en-tête oblige le navigateur à n’utiliser que HTTPS pour un domaine lors des visites suivantes ?',
+      statement:
+        'Quel en-tête oblige le navigateur à n’utiliser que HTTPS pour un domaine lors des visites suivantes ?',
       correct: 'Strict-Transport-Security',
       wrong: ['Upgrade-Insecure-Requests', 'Content-Security-Policy: default-src https:', 'Secure'],
       explanation:

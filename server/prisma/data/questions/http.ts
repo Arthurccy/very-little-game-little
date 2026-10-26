@@ -89,7 +89,8 @@ export const httpQuestions: SeedQuestionSet = {
     },
     {
       key: 'http-422-vs-400',
-      statement: 'Un JSON syntaxiquement invalide (accolade manquante) arrive sur l’API. Quel statut est le plus juste ?',
+      statement:
+        'Un JSON syntaxiquement invalide (accolade manquante) arrive sur l’API. Quel statut est le plus juste ?',
       correct: '400 Bad Request',
       wrong: ['415 Unsupported Media Type', '500 Internal Server Error', '406 Not Acceptable'],
       explanation:

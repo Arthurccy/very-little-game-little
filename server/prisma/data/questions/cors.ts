@@ -18,11 +18,7 @@ export const corsQuestions: SeedQuestionSet = {
       key: 'cors-who-enforces',
       statement: 'Qui applique la politique CORS ?',
       correct: 'Le navigateur, qui bloque la lecture de la réponse par le script',
-      wrong: [
-        'Le serveur, qui refuse d’exécuter la requête',
-        'Le pare-feu réseau',
-        'Le DNS',
-      ],
+      wrong: ['Le serveur, qui refuse d’exécuter la requête', 'Le pare-feu réseau', 'Le DNS'],
       explanation:
         'CORS n’est pas une protection du serveur : curl ou un autre serveur ignorent ces en-têtes. Le navigateur protège l’utilisateur.',
       mdn: mdn('Web/HTTP/CORS'),
@@ -76,13 +72,15 @@ export const corsQuestions: SeedQuestionSet = {
         'Fixer le délai maximal de la requête principale',
         'Définir la durée du cache HTTP de la réponse',
       ],
-      explanation: 'Il évite de refaire un OPTIONS avant chaque requête. Le cache HTTP de la réponse relève de Cache-Control.',
+      explanation:
+        'Il évite de refaire un OPTIONS avant chaque requête. Le cache HTTP de la réponse relève de Cache-Control.',
       mdn: mdn('Web/HTTP/Headers/Access-Control-Max-Age'),
       difficulty: 2,
     },
     {
       key: 'cors-expose-headers',
-      statement: 'Le script ne parvient pas à lire l’en-tête X-Total-Count d’une réponse cross-origin. Quelle est la correction ?',
+      statement:
+        'Le script ne parvient pas à lire l’en-tête X-Total-Count d’une réponse cross-origin. Quelle est la correction ?',
       correct: 'Ajouter Access-Control-Expose-Headers: X-Total-Count à la réponse',
       wrong: [
         'Ajouter Access-Control-Allow-Headers: X-Total-Count à la réponse',
@@ -121,7 +119,8 @@ export const corsQuestions: SeedQuestionSet = {
     {
       key: 'cors-not-csrf-protection',
       statement: 'CORS protège-t-il un formulaire POST cross-site contre le CSRF ?',
-      correct: 'Non : un formulaire simple est envoyé sans preflight, avec les cookies, même si la réponse est illisible',
+      correct:
+        'Non : un formulaire simple est envoyé sans preflight, avec les cookies, même si la réponse est illisible',
       wrong: [
         'Oui, le navigateur bloque toute requête cross-origin',
         'Oui, si Access-Control-Allow-Origin n’est pas défini',

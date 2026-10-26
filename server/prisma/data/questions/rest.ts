@@ -61,7 +61,8 @@ export const restQuestions: SeedQuestionSet = {
       statement: 'Quelle URL respecte le mieux le style REST pour supprimer le commentaire 9 de l’article 3 ?',
       correct: 'DELETE /articles/3/comments/9',
       wrong: ['POST /deleteComment?id=9', 'GET /articles/3/comments/9/delete', 'DELETE /comments/delete/9'],
-      explanation: 'En REST, l’URL nomme la ressource et la méthode HTTP porte l’action. Un GET ne doit jamais supprimer.',
+      explanation:
+        'En REST, l’URL nomme la ressource et la méthode HTTP porte l’action. Un GET ne doit jamais supprimer.',
       difficulty: 1,
     },
     {
@@ -93,7 +94,8 @@ export const restQuestions: SeedQuestionSet = {
     },
     {
       key: 'rest-pagination',
-      statement: 'Une collection compte un million d’éléments. Quelle approche est la plus raisonnable pour GET /orders ?',
+      statement:
+        'Une collection compte un million d’éléments. Quelle approche est la plus raisonnable pour GET /orders ?',
       correct: 'Paginer (par curseur ou limit/offset) et renvoyer de quoi obtenir la page suivante',
       wrong: [
         'Renvoyer toujours la collection complète',

@@ -13,7 +13,8 @@ export const cacheQuestions: SeedQuestionSet = {
         'La réponse expire après une heure',
         'Seuls les caches partagés peuvent la conserver',
       ],
-      explanation: 'Piège classique : c’est no-store qui interdit le stockage. no-cache impose seulement la revalidation.',
+      explanation:
+        'Piège classique : c’est no-store qui interdit le stockage. no-cache impose seulement la revalidation.',
       mdn: mdn('Web/HTTP/Headers/Cache-Control#no-cache'),
       difficulty: 2,
     },
@@ -41,7 +42,8 @@ export const cacheQuestions: SeedQuestionSet = {
     },
     {
       key: 'cache-etag-304',
-      statement: 'Le client envoie If-None-Match avec l’ETag qu’il possède et la ressource n’a pas changé. Que répond le serveur ?',
+      statement:
+        'Le client envoie If-None-Match avec l’ETag qu’il possède et la ressource n’a pas changé. Que répond le serveur ?',
       correct: '304 Not Modified, sans corps',
       wrong: ['200 OK avec le corps complet', '204 No Content', '412 Precondition Failed'],
       explanation:

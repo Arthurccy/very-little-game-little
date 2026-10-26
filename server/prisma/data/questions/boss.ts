@@ -25,7 +25,8 @@ export const bossQuestions: SeedQuestionSet[] = [
   boss('rest', [
     {
       key: 'boss-rest-retry-safe',
-      statement: 'Un proxy peut rejouer automatiquement une requête après une coupure. Laquelle peut-il rejouer sans risque ?',
+      statement:
+        'Un proxy peut rejouer automatiquement une requête après une coupure. Laquelle peut-il rejouer sans risque ?',
       correct: 'PUT /profile avec la représentation complète',
       wrong: ['POST /orders', 'PATCH /counter avec {"op":"increment"}', 'POST /payments'],
       explanation:
