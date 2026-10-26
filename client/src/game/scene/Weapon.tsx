@@ -133,8 +133,10 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
     });
   });
 
-  const metal = { color: '#5b6573', metalness: 0.6, roughness: 0.35 };
-  const dark = { color: '#2a313c', metalness: 0.4, roughness: 0.6 };
+  // Matériaux « matcap » : l'ombrage ne dépend que de l'orientation par rapport à la vue,
+  // pas des lumières du décor. L'arme garde exactement le même aspect quand on se déplace.
+  const metal = { color: '#7f8896' };
+  const dark = { color: '#3b434e' };
 
   return (
     <>
@@ -143,39 +145,39 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
           {/* Carcasse */}
           <mesh position={[0, 0, -0.05]}>
             <boxGeometry args={[0.07, 0.09, 0.32]} />
-            <meshStandardMaterial {...metal} />
+            <meshMatcapMaterial {...metal} />
           </mesh>
           {/* Rail et guidon */}
           <mesh position={[0, 0.055, -0.05]}>
             <boxGeometry args={[0.03, 0.02, 0.26]} />
-            <meshStandardMaterial {...dark} />
+            <meshMatcapMaterial {...dark} />
           </mesh>
           <mesh position={[0, 0.072, -0.17]}>
             <boxGeometry args={[0.012, 0.025, 0.012]} />
-            <meshStandardMaterial {...dark} />
+            <meshMatcapMaterial {...dark} />
           </mesh>
           {/* Bande lumineuse aux couleurs de la zone */}
           <mesh position={[0, 0.005, -0.06]}>
             <boxGeometry args={[0.072, 0.012, 0.2]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.2} toneMapped={false} />
+            <meshBasicMaterial color={accent} toneMapped={false} />
           </mesh>
           {/* Canon et frein de bouche */}
           <mesh position={[0, 0.015, -0.29]} rotation-x={Math.PI / 2}>
             <cylinderGeometry args={[0.017, 0.017, 0.16, 12]} />
-            <meshStandardMaterial {...metal} />
+            <meshMatcapMaterial {...metal} />
           </mesh>
           <mesh position={[0, 0.015, -0.37]} rotation-x={Math.PI / 2}>
             <cylinderGeometry args={[0.025, 0.025, 0.04, 12]} />
-            <meshStandardMaterial {...dark} />
+            <meshMatcapMaterial {...dark} />
           </mesh>
           {/* Poignée et chargeur */}
           <mesh position={[0, -0.1, 0.05]} rotation-x={-0.25}>
             <boxGeometry args={[0.055, 0.13, 0.06]} />
-            <meshStandardMaterial {...dark} />
+            <meshMatcapMaterial {...dark} />
           </mesh>
           <mesh position={[0, -0.1, -0.1]} rotation-x={0.15}>
             <boxGeometry args={[0.045, 0.12, 0.05]} />
-            <meshStandardMaterial {...metal} />
+            <meshMatcapMaterial {...metal} />
           </mesh>
           {/* Flash de bouche */}
           <mesh ref={muzzleFlash} position={MUZZLE} visible={false}>
