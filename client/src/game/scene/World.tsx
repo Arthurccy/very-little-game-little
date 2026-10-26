@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { PerformanceMonitor } from '@react-three/drei';
 import { Vector3, type Group } from 'three';
 import { BOSS_ZONE, type PublicQuestion } from '@fps/shared';
-import type { RevealState, ShotFx } from '../useGame';
+import type { CloseFx, RevealState, ShotFx } from '../useGame';
 import { Boss } from './Boss';
 import { Environment } from './Environment';
 import { LabelProjector } from './Labels';
@@ -17,6 +17,7 @@ interface Props {
   reveal: RevealState | null;
   serverNow: () => number;
   lastShot: ShotFx | null;
+  lastClose: CloseFx | null;
   scenery: string | undefined;
   bossHealth: number;
   onShoot: (answerId: string | null) => void;
@@ -43,6 +44,7 @@ export const World = memo(function World({
   reveal,
   serverNow,
   lastShot,
+  lastClose,
   scenery,
   bossHealth,
   onShoot,
@@ -55,14 +57,15 @@ export const World = memo(function World({
 
   // L'avancée des ennemis reflète le temps restant ; elle n'inflige aucun dégât.
   // Pendant l'explication, les cibles restent figées là où elles étaient à la clôture.
-  const getZ = () => {
-    if (!shown) return ARENA.zFar;
+  const getProgress = () => {
+    if (!shown) return 0;
     const start = Date.parse(shown.startedAt);
     const end = Date.parse(shown.deadlineAt);
     const t = reveal ? reveal.closedAt : serverNow();
-    const k = Math.min(1, Math.max(0, (t - start) / (end - start)));
-    return ARENA.zFar + (ARENA.zNear - ARENA.zFar) * k;
+    return Math.min(1, Math.max(0, (t - start) / (end - start)));
   };
+  // Approche lente au début, ruée sur la fin du chrono.
+  const getZ = () => ARENA.zFar + (ARENA.zNear - ARENA.zFar) * Math.pow(getProgress(), 1.7);
 
   const groups = useRef(new Map<string, Group>());
   const labels = useRef(new Map<string, HTMLDivElement>());
@@ -84,7 +87,7 @@ export const World = memo(function World({
       if (answerId === reveal.reveal.correctAnswerId) {
         return reveal.outcome === 'HIT_CORRECT' ? 'correct-hit' : 'correct';
       }
-      return 'eliminated';
+      return reveal.question.eliminatedAnswerIds.includes(answerId) ? 'eliminated' : 'dismissed';
     }
     return shown?.eliminatedAnswerIds.includes(answerId) ? 'eliminated' : 'alive';
   };
@@ -102,7 +105,13 @@ export const World = memo(function World({
           onIncline={() => setDpr((d) => Math.min(DPR_MAX, window.devicePixelRatio, d + 0.25))}
         />
         <Environment scenery={palette} />
-        {isBoss && <Boss health={bossHealth} hurtAt={lastShot?.outcome === 'ELIMINATED_WRONG' ? lastShot.at : null} />}
+        {isBoss && (
+          <Boss
+            health={bossHealth}
+            hurtAt={lastShot?.outcome === 'ELIMINATED_WRONG' ? lastShot.at : null}
+            attackAt={lastClose?.zone === BOSS_ZONE && lastClose.outcome !== 'ELIMINATED_WRONG' ? lastClose.at : null}
+          />
+        )}
         {shown?.answers.map((a, i) => (
           <Target
             key={`${shown.id}:${a.id}`}
@@ -110,6 +119,7 @@ export const World = memo(function World({
             index={i}
             x={spreadX(i, shown.answers.length)}
             getZ={getZ}
+            getProgress={getProgress}
             state={stateOf(a.id)}
             accent={palette.accent}
             hitAt={lastShot?.answerId === a.id ? lastShot.at : null}

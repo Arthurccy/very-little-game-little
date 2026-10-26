@@ -14,12 +14,25 @@ interface Props {
   nextTheme: ThemeDTO | undefined;
   locked: boolean;
   muted: boolean;
+  musicOn: boolean;
+  onToggleMusic: () => void;
   onToggleMute: () => void;
   onAbandon: () => void;
   bossHealth: number;
 }
 
-export function Hud({ game, theme, nextTheme, locked, muted, onToggleMute, onAbandon, bossHealth }: Props) {
+export function Hud({
+  game,
+  theme,
+  nextTheme,
+  locked,
+  muted,
+  onToggleMute,
+  musicOn,
+  onToggleMusic,
+  onAbandon,
+  bossHealth,
+}: Props) {
   const { session, phase, now, reveal } = game;
   const shown = reveal?.question ?? game.question;
   const isBoss = shown?.zone === BOSS_ZONE;
@@ -78,8 +91,19 @@ export function Hud({ game, theme, nextTheme, locked, muted, onToggleMute, onAba
           >
             {muted ? '🔇' : '🔊'}
           </button>
+          <button
+            type="button"
+            className={`icon-btn ${musicOn ? '' : 'icon-btn--off'}`}
+            onClick={onToggleMusic}
+            aria-label={musicOn ? 'Couper la musique' : 'Activer la musique'}
+            aria-pressed={musicOn}
+          >
+            🎵
+          </button>
         </div>
       </div>
+
+      {phase === 'active' && ratio < 0.25 && <div className="danger-vignette" aria-hidden />}
 
       {locked && <div className="crosshair" aria-hidden />}
 
@@ -173,7 +197,7 @@ export function Hud({ game, theme, nextTheme, locked, muted, onToggleMute, onAba
         </button>
         <p>
           Souris : viser · Clic : tirer · ZQSD / WASD : se déplacer · <kbd>1</kbd>–<kbd>6</kbd> : tirer sur une cible ·{' '}
-          <kbd>M</kbd> : son · <kbd>Échap</kbd> : pause
+          <kbd>M</kbd> : son · <kbd>N</kbd> : musique · <kbd>Échap</kbd> : pause
         </p>
         <p className="muted">Attention : le chrono du serveur continue pendant la pause.</p>
         <button type="button" className="btn btn--ghost" onClick={onAbandon}>

@@ -6,6 +6,7 @@ chaque cible porte une réponse, **abats les mauvaises, épargne la bonne**.
 - 6 zones thématiques de 4 questions, puis un boss final de 6 questions mélangées.
 - 100 PV ; tirer sur la bonne réponse coûte 25 PV, laisser filer le chrono en coûte 20.
 - Combo jusqu’à ×4, bonus de vitesse, bonus aléatoires (ralenti, réponse retirée, soin).
+- Musique générée par zone, ennemis qui explosent et deviennent menaçants en fin de chrono, boss qui se fissure et riposte.
 - Mode entraînement sans perte de PV, classement, back-office pour gérer les questions et voir les statistiques.
 - Le serveur est seul arbitre : il tire les questions, chronomètre et calcule tout ; la bonne réponse ne quitte jamais l’API avant la fin de la question.
 
@@ -37,6 +38,7 @@ Connecte-toi avec le compte admin du `.env` pour accéder au back-office, ou cr�
 | Se déplacer | ZQSD ou WASD, flèches |
 | Tirer directement sur la cible n | `1` à `6` |
 | Couper le son | `M` |
+| Couper la musique | `N` |
 | Pause | `Échap` (le chrono serveur continue) |
 
 ## Scripts racine

@@ -7,6 +7,7 @@ const MUTE_KEY = 'fps-edu:muted';
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let muted = readMuted();
+const muteListeners = new Set<(muted: boolean) => void>();
 
 function readMuted(): boolean {
   try {
@@ -16,7 +17,8 @@ function readMuted(): boolean {
   }
 }
 
-function audio(): { ctx: AudioContext; out: GainNode } | null {
+/** Sortie audio partagée (effets et musique) ; null si le son est coupé ou indisponible. */
+export function audio(): { ctx: AudioContext; out: GainNode } | null {
   if (muted) return null;
   if (!ctx) {
     const Ctor =
@@ -35,8 +37,15 @@ export function isMuted(): boolean {
   return muted;
 }
 
+/** Prévient la musique quand le son est coupé ou rétabli. */
+export function onMuteChange(listener: (muted: boolean) => void): () => void {
+  muteListeners.add(listener);
+  return () => muteListeners.delete(listener);
+}
+
 export function setMuted(value: boolean): void {
   muted = value;
+  muteListeners.forEach((l) => l(value));
   try {
     localStorage.setItem(MUTE_KEY, value ? '1' : '0');
   } catch {

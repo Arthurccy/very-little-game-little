@@ -224,7 +224,16 @@ Cache : `/themes` en `public, max-age=300`, `/leaderboard` en `no-cache`, partie
   (le chrono serveur continue).
 - **HUD** : PV, zone, progression, vie du boss, score, combo et multiplicateur, chrono, toasts de bonus, explication
   avec lien MDN et annonce de la zone suivante.
-- **Sons** : synthétisés avec la Web Audio API (`client/src/game/audio.ts`), aucun fichier à charger.
+- **Sons et musique** : tout est synthétisé avec la Web Audio API, aucun fichier à charger. Effets dans
+  `client/src/game/audio.ts` ; musique dans `client/src/game/music.ts` (séquenceur à anticipation, une boucle par
+  décor avec sa tonalité, son tempo et sa gamme, une boucle plus intense pour le boss, fondu enchaîné entre zones).
+  `M` coupe tout, `N` coupe seulement la musique.
+- **Ennemis** : explosion d'éclats quand ils sont abattus (un seul `InstancedMesh` par explosion) ; dans le dernier
+  tiers du chrono, ils rougissent, tremblent, se penchent et accélèrent vers le joueur, avec une vignette rouge à l'écran.
+  Quand une question est ratée, les mauvaises réponses restantes s'enfoncent dans le sol au lieu d'exploser.
+- **Boss** : il perd une pointe et se fissure à chaque question boss passée ; chaque mauvaise réponse éliminée le fait
+  trembler et cracher des débris ; une question ratée le fait charger et tirer un projectile sur le joueur (flash rouge
+  à l'impact). Tout cela est visuel : les PV restent calculés par le serveur.
 
 ## 6. Arborescence
 

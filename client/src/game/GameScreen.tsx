@@ -7,8 +7,10 @@ import {
   type ThemeDTO,
 } from '@fps/shared';
 import { isMuted, setMuted, sfx } from './audio';
+import { music } from './music';
 import { Hud } from './hud/Hud';
 import type { AimShot } from './scene/Player';
+import { BOSS_PROJECTILE_IMPACT_MS } from './scene/Boss';
 import { World } from './scene/World';
 import { useGame } from './useGame';
 
@@ -30,6 +32,12 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
   const bossHealth =
     shown?.zone === BOSS_ZONE ? 1 - (Math.max(0, bossIndex) + (game.reveal ? 1 : 0)) / BOSS_QUESTION_COUNT : 1;
 
+  const [musicOn, setMusicOn] = useState(music.isEnabled);
+  const toggleMusic = useCallback(() => {
+    music.setEnabled(!music.isEnabled());
+    setMusicOn(music.isEnabled());
+  }, []);
+
   const toggleMute = useCallback(() => {
     setMuted(!isMuted());
     setMutedState(isMuted());
@@ -47,6 +55,7 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyM') toggleMute();
+      if (e.code === 'KeyN') toggleMusic();
       const n = Number.parseInt(e.key, 10);
       if (n >= 1 && n <= 6 && game.question) {
         const answer = game.question.answers[n - 1];
@@ -60,7 +69,7 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [game, toggleMute]);
+  }, [game, toggleMute, toggleMusic]);
 
   // Sons d'ambiance : compte à rebours et entrée du boss.
   const lastTick = useRef<number | null>(null);
@@ -79,20 +88,34 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
     }
   }, [game.phase, game.now, game.question]);
 
+  // Musique : une boucle par décor, celle du boss en zone finale ; arrêt en fin de partie.
+  const musicKey =
+    game.session.status !== 'IN_PROGRESS' ? null : shown?.zone === BOSS_ZONE ? 'boss' : (theme?.scenery ?? null);
+  useEffect(() => {
+    if (musicKey) music.play(musicKey);
+    else music.stop();
+  }, [musicKey]);
+  useEffect(() => () => music.stop(), []);
+
   // Libère la souris à la fin de la partie.
   useEffect(() => {
     if (game.session.status !== 'IN_PROGRESS' && document.pointerLockElement) document.exitPointerLock();
   }, [game.session.status]);
 
+  // Flash rouge quand le joueur perd des PV (bonne réponse touchée ou chrono échu).
+  // Pendant le boss, il coïncide avec l'impact du projectile tiré par le boss.
+  const hurtDelay = game.lastClose?.zone === BOSS_ZONE ? BOSS_PROJECTILE_IMPACT_MS : 0;
+  const sinceClose = game.lastClose ? performance.now() - game.lastClose.at - hurtDelay : Infinity;
+  const hurt = game.lastClose?.outcome !== 'ELIMINATED_WRONG' && sinceClose >= 0 && sinceClose < 450;
+
   return (
-    <div
-      className={`game ${game.lastShot?.outcome === 'HIT_CORRECT' && performance.now() - game.lastShot.at < 400 ? 'game--hurt' : ''}`}
-    >
+    <div className={`game ${hurt ? 'game--hurt' : ''}`}>
       <World
         question={shown}
         reveal={game.reveal}
         serverNow={game.serverNow}
         lastShot={game.lastShot}
+        lastClose={game.lastClose}
         scenery={theme?.scenery}
         bossHealth={bossHealth}
         onShoot={handleShoot}
@@ -106,6 +129,8 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
         locked={locked}
         muted={muted}
         onToggleMute={toggleMute}
+        musicOn={musicOn}
+        onToggleMusic={toggleMusic}
         onAbandon={() => void game.abandon()}
         bossHealth={bossHealth}
       />

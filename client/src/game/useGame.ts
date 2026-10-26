@@ -30,6 +30,13 @@ export interface ShotFx {
   at: number;
 }
 
+/** Clôture d'une question (réussite, bonne réponse touchée ou chrono échu). */
+export interface CloseFx {
+  outcome: ShotOutcome;
+  zone: number;
+  at: number;
+}
+
 export interface BonusFx {
   drop: BonusDrop;
   at: number;
@@ -54,6 +61,7 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
   const [reveal, setReveal] = useState<RevealState | null>(null);
   const [lastShot, setLastShot] = useState<ShotFx | null>(null);
   const [bonus, setBonus] = useState<BonusFx | null>(null);
+  const [lastClose, setLastClose] = useState<CloseFx | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(serverNow);
 
@@ -111,6 +119,7 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
         return;
       }
 
+      setLastClose({ outcome: res.outcome, zone: current.zone, at: performance.now() });
       const correct = res.reveal!.correctAnswerId;
       if (res.outcome === 'HIT_CORRECT') sfx.hitCorrect();
       else if (res.outcome === 'TIMEOUT') sfx.timeout();
@@ -205,6 +214,7 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
     now,
     serverNow,
     lastShot,
+    lastClose,
     bonus,
     error,
     clearError: () => setError(null),
