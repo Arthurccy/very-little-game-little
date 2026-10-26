@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { PointerLockControls } from '@react-three/drei';
-import { Raycaster, Vector2, Vector3, type Group, type Object3D, type PointLight } from 'three';
+import { Raycaster, Vector2, Vector3, type Object3D } from 'three';
 import { ARENA } from './sceneries';
+import { Weapon, type WeaponHandle } from './Weapon';
 
 const SPEED = 5;
 const CENTER = new Vector2(0, 0);
+/** Portée d'une balle qui ne touche rien. */
+const MAX_RANGE = 60;
 const KEYS: Record<string, 'f' | 'b' | 'l' | 'r'> = {
   KeyW: 'f',
   KeyZ: 'f',
@@ -27,22 +30,36 @@ function findTarget(obj: Object3D | null): string | null {
   return null;
 }
 
+/** L'arme et les balles ne doivent pas arrêter le rayon de visée. */
+function isIgnored(obj: Object3D | null): boolean {
+  for (let o = obj; o; o = o.parent) if (o.userData.ignoreRay) return true;
+  return false;
+}
+
+/** Tir déclenché au clavier (touches 1 à 6) : la balle part vers la cible désignée. */
+export interface AimShot {
+  answerId: string;
+  at: number;
+}
+
 interface Props {
   /** Appelé avec l'id de la réponse visée, ou null si le tir ne touche aucune cible. */
   onShoot: (answerId: string | null) => void;
   onLockChange: (locked: boolean) => void;
+  accent: string;
+  aimShot: AimShot | null;
+  /** Point à viser (centre du corps) pour une cible donnée. */
+  getTargetPoint: (answerId: string) => Vector3 | null;
 }
 
 /**
  * Caméra à la première personne : pointer lock (drei), déplacement ZQSD/WASD borné,
  * tir par raycast explicite depuis le centre de l'écran.
  */
-export function Player({ onShoot, onLockChange }: Props) {
+export function Player({ onShoot, onLockChange, accent, aimShot, getTargetPoint }: Props) {
   const { camera, scene } = useThree();
   const pressed = useRef(new Set<'f' | 'b' | 'l' | 'r'>());
-  const gun = useRef<Group>(null);
-  const flash = useRef<PointLight>(null);
-  const recoil = useRef(0);
+  const weapon = useRef<WeaponHandle>(null);
   const onShootRef = useRef(onShoot);
   onShootRef.current = onShoot;
 
@@ -64,9 +81,15 @@ export function Player({ onShoot, onLockChange }: Props) {
     const fire = (e: MouseEvent) => {
       if (e.button !== 0 || !document.pointerLockElement) return;
       raycaster.setFromCamera(CENTER, camera);
-      const hit = raycaster.intersectObjects(scene.children, true).find((h) => findTarget(h.object) !== null);
-      recoil.current = 1;
-      onShootRef.current(hit ? findTarget(hit.object) : null);
+      const hits = raycaster.intersectObjects(scene.children, true).filter((h) => !isIgnored(h.object));
+      const targetHit = hits.find((h) => findTarget(h.object) !== null);
+      // La balle s'arrête sur la cible touchée, sinon sur le premier obstacle, sinon à portée maximale.
+      const end =
+        targetHit?.point ??
+        hits[0]?.point ??
+        raycaster.ray.origin.clone().addScaledVector(raycaster.ray.direction, MAX_RANGE);
+      weapon.current?.fire(end);
+      onShootRef.current(targetHit ? findTarget(targetHit.object) : null);
     };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
@@ -77,6 +100,14 @@ export function Player({ onShoot, onLockChange }: Props) {
       document.removeEventListener('mousedown', fire);
     };
   }, [camera, scene]);
+
+  // Tir au clavier : animation seulement, le tir lui-même est envoyé par l'écran de jeu.
+  useEffect(() => {
+    if (!aimShot) return;
+    const point = getTargetPoint(aimShot.answerId);
+    if (point) weapon.current?.fire(point);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aimShot]);
 
   const forward = useRef(new Vector3());
   const right = useRef(new Vector3());
@@ -98,17 +129,6 @@ export function Player({ onShoot, onLockChange }: Props) {
       camera.position.z = Math.min(b.maxZ, Math.max(b.minZ, camera.position.z));
       camera.position.y = ARENA.playerStart[1];
     }
-
-    // Flash de bouche collé à la caméra.
-    recoil.current = Math.max(0, recoil.current - delta * 8);
-    if (gun.current) {
-      gun.current.position.copy(camera.position);
-      gun.current.quaternion.copy(camera.quaternion);
-      gun.current.translateX(0.22);
-      gun.current.translateY(-0.2);
-      gun.current.translateZ(-0.55 + recoil.current * 0.06);
-    }
-    if (flash.current) flash.current.intensity = recoil.current > 0.7 ? 6 : 0;
   });
 
   return (
@@ -118,9 +138,7 @@ export function Player({ onShoot, onLockChange }: Props) {
         onLock={() => onLockChange(true)}
         onUnlock={() => onLockChange(false)}
       />
-      <group ref={gun}>
-        <pointLight ref={flash} position={[0, 0, -0.4]} color="#fde68a" intensity={0} distance={4} />
-      </group>
+      <Weapon accent={accent} handle={weapon} />
     </>
   );
 }

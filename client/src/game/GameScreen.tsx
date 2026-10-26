@@ -8,6 +8,7 @@ import {
 } from '@fps/shared';
 import { isMuted, setMuted, sfx } from './audio';
 import { Hud } from './hud/Hud';
+import type { AimShot } from './scene/Player';
 import { World } from './scene/World';
 import { useGame } from './useGame';
 
@@ -21,6 +22,7 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
   const game = useGame(initial, onEnded);
   const [locked, setLocked] = useState(false);
   const [muted, setMutedState] = useState(isMuted);
+  const [aimShot, setAimShot] = useState<AimShot | null>(null);
 
   const shown = game.reveal?.question ?? game.question;
   const theme = shown && shown.zone !== BOSS_ZONE ? themes[shown.zone - 1] : undefined;
@@ -48,7 +50,12 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
       const n = Number.parseInt(e.key, 10);
       if (n >= 1 && n <= 6 && game.question) {
         const answer = game.question.answers[n - 1];
-        if (answer) void game.shoot(answer.id);
+        if (!answer) return;
+        // La balle ne part que si le tir peut être accepté (cible vivante, question en cours).
+        if (game.phase === 'active' && !game.question.eliminatedAnswerIds.includes(answer.id)) {
+          setAimShot({ answerId: answer.id, at: performance.now() });
+        }
+        void game.shoot(answer.id);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -87,6 +94,7 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
         bossHealth={bossHealth}
         onShoot={handleShoot}
         onLockChange={setLocked}
+        aimShot={aimShot}
       />
       <Hud
         game={game}

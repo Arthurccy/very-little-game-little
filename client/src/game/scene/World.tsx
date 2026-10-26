@@ -1,12 +1,12 @@
 import { useCallback, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import type { Group } from 'three';
+import { Vector3, type Group } from 'three';
 import { BOSS_ZONE, type PublicQuestion } from '@fps/shared';
 import type { GameController } from '../useGame';
 import { Boss } from './Boss';
 import { Environment } from './Environment';
 import { LabelProjector } from './Labels';
-import { Player } from './Player';
+import { Player, type AimShot } from './Player';
 import { ARENA, sceneryFor } from './sceneries';
 import { Target, type TargetState } from './Target';
 
@@ -16,6 +16,7 @@ interface Props {
   bossHealth: number;
   onShoot: (answerId: string | null) => void;
   onLockChange: (locked: boolean) => void;
+  aimShot: AimShot | null;
 }
 
 /** Position latérale des cibles, réparties en éventail. */
@@ -24,7 +25,7 @@ function spreadX(index: number, count: number): number {
   return count === 1 ? 0 : -width / 2 + (width * index) / (count - 1);
 }
 
-export function World({ game, scenery, bossHealth, onShoot, onLockChange }: Props) {
+export function World({ game, scenery, bossHealth, onShoot, onLockChange, aimShot }: Props) {
   const shown: PublicQuestion | null = game.reveal?.question ?? game.question;
   const isBoss = shown?.zone === BOSS_ZONE;
   const palette = sceneryFor(isBoss ? 'boss' : scenery);
@@ -45,6 +46,14 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange }: Prop
   const register = useCallback((answerId: string, group: Group | null) => {
     if (group) groups.current.set(answerId, group);
     else groups.current.delete(answerId);
+  }, []);
+
+  const getTargetPoint = useCallback((answerId: string) => {
+    const g = groups.current.get(answerId);
+    if (!g) return null;
+    const p = g.getWorldPosition(new Vector3());
+    p.y += 1.1 * g.scale.y;
+    return p;
   }, []);
 
   const stateOf = (answerId: string): TargetState => {
@@ -79,7 +88,13 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange }: Prop
           />
         ))}
         <LabelProjector groups={groups.current} labels={labels.current} />
-        <Player onShoot={onShoot} onLockChange={onLockChange} />
+        <Player
+          onShoot={onShoot}
+          onLockChange={onLockChange}
+          accent={palette.accent}
+          aimShot={aimShot}
+          getTargetPoint={getTargetPoint}
+        />
       </Canvas>
       <div className="labels" aria-hidden>
         {shown?.answers.map((a, i) => {
@@ -92,7 +107,7 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange }: Prop
                 else labels.current.delete(a.id);
               }}
               data-index={i}
-            className={`target-label target-label--${state}`}
+              className={`target-label target-label--${state}`}
             >
               <span className="target-key">{i + 1}</span>
               {a.text}
