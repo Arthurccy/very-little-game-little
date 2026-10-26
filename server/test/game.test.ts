@@ -23,7 +23,11 @@ async function start(token: string, mode: 'NORMAL' | 'TRAINING' = 'NORMAL') {
 }
 
 async function shot(token: string, sessionId: string, answerId: string, status = 200) {
-  const res = await request(app).post(`/sessions/${sessionId}/shots`).set(bearer(token)).send({ answerId }).expect(status);
+  const res = await request(app)
+    .post(`/sessions/${sessionId}/shots`)
+    .set(bearer(token))
+    .send({ answerId })
+    .expect(status);
   return res.body as ShotResponse;
 }
 
@@ -39,14 +43,27 @@ describe('création de partie', () => {
   it('tire 4 questions par zone puis 6 boss, sans jamais exposer isCorrect', async () => {
     const time = freezeTime();
     const player = await registerPlayer();
-    const res = await request(app).post('/sessions').set(bearer(player.accessToken)).send({ mode: 'NORMAL' }).expect(201);
+    const res = await request(app)
+      .post('/sessions')
+      .set(bearer(player.accessToken))
+      .send({ mode: 'NORMAL' })
+      .expect(201);
     const body = res.body as CreateSessionResponse;
 
     expect(JSON.stringify(body)).not.toMatch(/isCorrect/);
     expect(res.headers['cache-control']).toBe('no-store');
-    expect(body.session).toMatchObject({ status: 'IN_PROGRESS', hp: 100, score: 0, combo: 0, multiplier: 1, total: 30 });
+    expect(body.session).toMatchObject({
+      status: 'IN_PROGRESS',
+      hp: 100,
+      score: 0,
+      combo: 0,
+      multiplier: 1,
+      total: 30,
+    });
     expect(body.question).toMatchObject({ position: 0, zone: 1, themeSlug: 'http', kind: 'STANDARD' });
-    expect(new Date(body.question.startedAt).getTime() - new Date(body.serverNow).getTime()).toBe(FIRST_QUESTION_DELAY_MS);
+    expect(new Date(body.question.startedAt).getTime() - new Date(body.serverNow).getTime()).toBe(
+      FIRST_QUESTION_DELAY_MS,
+    );
     expect(body.question.answers).toHaveLength(4);
 
     const series = await prisma.sessionQuestion.findMany({
@@ -262,7 +279,10 @@ describe('fin de partie', () => {
     const board = await request(app).get('/leaderboard').expect(200);
     expect(board.body).toContainEqual(expect.objectContaining({ pseudo: player.user.pseudo, score: 150 }));
 
-    const summary = await request(app).get(`/sessions/${session.id}/summary`).set(bearer(player.accessToken)).expect(200);
+    const summary = await request(app)
+      .get(`/sessions/${session.id}/summary`)
+      .set(bearer(player.accessToken))
+      .expect(200);
     expect(summary.body).toMatchObject({ cleared: 1, failed: 4, bestCombo: 1 });
     session = summary.body.session;
   });

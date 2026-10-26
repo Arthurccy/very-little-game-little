@@ -4,8 +4,8 @@ Mini-FPS dans le navigateur pour réviser HTTP, REST, CORS, l’authentification
 À chaque question, des cibles portent des réponses : le joueur abat les **mauvaises** et épargne la **bonne**.
 
 Ce document fige les choix techniques, les règles de partie, le modèle de données et le contrat d’API.
-L’étape 1 (ce dépôt) livre le socle : monorepo, PostgreSQL, schéma Prisma et seed. Le reste est décrit
-ici et attend un feu vert explicite, dans l’ordre des étapes 2 à 7 (voir la [feuille de route](#feuille-de-route)).
+Les étapes 1 à 7 sont implémentées (voir la [feuille de route](#feuille-de-route)) ; ce document décrit
+l’état actuel du code.
 
 ---
 
@@ -13,7 +13,7 @@ ici et attend un feu vert explicite, dans l’ordre des étapes 2 à 7 (voir la 
 
 | Domaine | Choix | Raison |
 |---|---|---|
-| Front (étape 3+) | Vite, React, TypeScript, React Three Fiber, drei | R3F reste du Three.js ; React sert les menus, la fin de partie, le classement et le back-office. |
+| Front | Vite, React, TypeScript, React Three Fiber, drei | R3F reste du Three.js ; React sert les menus, la fin de partie, le classement et le back-office. |
 | HUD | HTML/CSS par-dessus le canvas | Question, PV, combo, explication et menus sont plus simples et accessibles en DOM. |
 | Visée | Pointer lock, raycast explicite depuis le centre de l’écran | Le tir est un événement discret envoyé au serveur ; aucune physique nécessaire. |
 | Back | Node.js, TypeScript, Express, Zod | Validation déclarative des entrées, typage partagé. |
@@ -30,6 +30,10 @@ ici et attend un feu vert explicite, dans l’ordre des étapes 2 à 7 (voir la 
 | PostgreSQL | `54329` |
 | API Express | `43124` |
 | Vite | `43123` |
+
+Ces ports tombent dans la plage éphémère de Linux (32768–60999) : une connexion sortante peut
+occuper l’un d’eux par hasard. L’API le signale (`EADDRINUSE`) et s’arrête ; il suffit alors de changer
+`API_PORT` (et `VITE_API_URL`) dans `.env`.
 
 ### Principes anti-triche
 
@@ -77,17 +81,26 @@ points                = round(basePoints × multiplicateur(comboAvant) × bonusV
 - **Zone 7 — boss** : **6 questions boss**, tirées dans le pool `BOSS` et mélangées tous thèmes confondus.
 - Soit 30 questions. L’ordre est persisté à la création ; la partie est gagnée (`WON`) si la 30ᵉ est close avec des PV restants.
 - Le joueur peut abandonner (`POST /sessions/:id/end`) : statut `ABANDONED`, score conservé mais hors classement.
+- Une seule partie en cours par joueur : en lancer une nouvelle abandonne la précédente.
+
+### Rythme
+
+- La première question démarre **3 s** après la création (`FIRST_QUESTION_DELAY_MS`), le temps d’entrer dans la zone.
+- Chaque question close est suivie de **6 s** de lecture de l’explication (`INTER_QUESTION_DELAY_MS`) :
+  le serveur active immédiatement la suivante, mais avec un `startedAt` dans le futur.
+  Un tir avant `startedAt` est refusé (`409`).
 
 ### Mode entraînement
 
 Même tirage et même validation des tirs, mais **aucune perte de PV** et **hors classement**. Le score et le combo restent calculés pour le retour au joueur.
 
-### Bonus (étape 6, déjà prévu au schéma)
+### Bonus
 
-- Le serveur décide du drop **au moment d’un tir valide** (élimination d’une mauvaise réponse) et l’inscrit dans `AnswerLog.bonus`.
-- `SLOW_TIME` : repousse `deadlineAt` de la question en cours.
-- `REMOVE_WRONG` : élimine une mauvaise réponse restante.
-- `HEAL` : rend des PV, sans dépasser 100.
+- Le serveur décide du drop **au moment d’un tir valide** (élimination d’une mauvaise réponse), avec une probabilité
+  de 15 %, et l’inscrit dans `AnswerLog.bonus`. Il ne tire qu’un bonus qui a un effet dans la situation.
+- `SLOW_TIME` : repousse `deadlineAt` de la question en cours de 5 s (le bonus de vitesse se calcule alors sur le temps imparti rallongé).
+- `REMOVE_WRONG` : élimine une mauvaise réponse restante (seulement s’il en reste au moins deux, pour ne pas finir la question à la place du joueur).
+- `HEAL` : rend 15 PV, sans dépasser 100 (mode normal uniquement).
 
 ---
 
@@ -100,7 +113,8 @@ Source : `server/prisma/schema.prisma`. Écarts par rapport au brouillon initial
 - **pas de colonne `ordre` sur `Answer`** : l’ordre est propre à chaque partie ;
 - **journal des tirs** (`AnswerLog`) avec un `elapsedMs` calculé par le serveur ;
 - ajout de `RefreshToken` (stocké haché) pour la rotation et le logout ;
-- ajout de `Question.seedKey` (seed rejouable) et `Question.isActive` (suppression douce au back-office).
+- ajout de `Question.seedKey` (seed rejouable) et `Question.isActive` (suppression douce au back-office) ;
+- ajout de `SessionQuestion.eliminated` : les réponses éliminées font partie de l’état autoritaire (le bonus `REMOVE_WRONG` élimine sans tir).
 
 ```
 User 1───* GameSession 1───* SessionQuestion *───1 Question *───1 Theme
@@ -116,7 +130,7 @@ User 1───* GameSession 1───* SessionQuestion *───1 Question *�
 | `Question` | `themeId`, `statement`, `explanation`, `mdnUrl`, `difficulty` 1–3, `kind` `STANDARD \| BOSS`, `timeLimitMs`, `basePoints`, `isActive`, `seedKey` |
 | `Answer` | `questionId`, `text`, `isCorrect` |
 | `GameSession` | `mode` `NORMAL \| TRAINING`, `status` `IN_PROGRESS \| WON \| LOST \| ABANDONED`, `score`, `hp`, `combo`, `multiplier`, `currentIndex`, `startedAt`, `endedAt` |
-| `SessionQuestion` | `position` (unique par partie), `zone` (1–6 thèmes, 7 boss), `status` `PENDING \| ACTIVE \| CLEARED \| FAILED`, `answerOrder`, `startedAt`, `deadlineAt`, `resolvedAt`, `pointsAwarded` |
+| `SessionQuestion` | `position` (unique par partie), `zone` (1–6 thèmes, 7 boss), `status` `PENDING \| ACTIVE \| CLEARED \| FAILED`, `answerOrder`, `eliminated`, `startedAt`, `deadlineAt`, `resolvedAt`, `pointsAwarded` |
 | `AnswerLog` | `answerId` (null pour un timeout), `outcome` `ELIMINATED_WRONG \| HIT_CORRECT \| TIMEOUT`, `elapsedMs`, `bonus` |
 
 Choix de suppression : supprimer un utilisateur supprime ses parties ; une question jouée ne peut pas être supprimée physiquement (`Restrict`), on la désactive. Recréer les réponses d’une question (seed) passe les `AnswerLog.answerId` concernés à `null`.
@@ -135,7 +149,7 @@ Les questions ciblent les confusions classiques : 401 vs 403, méthodes sûres v
 
 ---
 
-## 4. Contrat d’API (implémenté à l’étape 2)
+## 4. Contrat d’API
 
 Base : `http://localhost:43124`. JSON partout. Types dans `shared/src/dto.ts`.
 
@@ -149,7 +163,10 @@ Base : `http://localhost:43124`. JSON partout. Types dans `shared/src/dto.ts`.
 | `POST /auth/logout` | — (cookie) | `204`, refresh révoqué et cookie effacé |
 
 - **Jeton d’accès** : JWT court (15 min), renvoyé dans le JSON, gardé **en mémoire** côté client, envoyé en `Authorization: Bearer`.
-- **Refresh token** : opaque, cookie `httpOnly`, `SameSite=Lax`, `Path=/auth`, `Secure` en production. Stocké haché ; rotation à chaque refresh, réutilisation d’un jeton déjà remplacé = révocation de toute la chaîne.
+- **Refresh token** : opaque (256 bits), cookie `httpOnly`, `SameSite=Lax`, `Path=/auth`, `Secure` en production. Stocké haché (SHA-256) ; rotation à chaque refresh, réutilisation d’un jeton déjà remplacé = révocation de toute la chaîne.
+- `/auth/refresh` et `/auth/logout` refusent (`403`) un en-tête `Origin` différent de `CLIENT_ORIGIN`.
+- `/auth/register` et `/auth/login` sont limités à 50 requêtes / 15 min par IP (`429`).
+- Le login vérifie un hash factice quand l’email est inconnu, pour ne pas révéler l’existence d’un compte par le temps de réponse.
 
 ### Jeu
 
@@ -157,6 +174,8 @@ Base : `http://localhost:43124`. JSON partout. Types dans `shared/src/dto.ts`.
 |---|---|---|
 | `GET /themes` | public | `ThemeDTO[]` triés par `order` |
 | `POST /sessions` | joueur | `{ mode }` → crée la partie, tire la série, active la question 0 → `201 CreateSessionResponse` |
+| `GET /sessions/:id` | propriétaire | reprise : état + question en cours → `SessionDetailResponse` |
+| `GET /sessions/:id/summary` | propriétaire | bilan (réussies, ratées, meilleur combo) → `SessionSummaryDTO` |
 | `POST /sessions/:id/shots` | propriétaire | `{ answerId }` → valide le tir → `ShotResponse` |
 | `POST /sessions/:id/timeout` | propriétaire | clôt la question active **si** `now ≥ deadlineAt` (sinon `409`) → `TimeoutResponse` |
 | `POST /sessions/:id/end` | propriétaire | abandon → `EndSessionResponse` |
@@ -168,7 +187,8 @@ Règles de `/shots` :
 
 - `answerId` doit appartenir à la question **active** et ne pas être déjà éliminé, sinon `400`.
 - Si l’horloge serveur a dépassé `deadlineAt`, le tir est traité comme un `TIMEOUT`.
-- Les écritures d’un tir (log, question, session) se font dans **une transaction** avec verrou sur la session pour empêcher deux tirs concurrents de compter double.
+- Les écritures d’un tir (log, question, session) se font dans **une transaction** avec verrou (`SELECT … FOR UPDATE`) sur la session pour empêcher deux tirs concurrents de compter double.
+- Toutes les réponses de partie portent `serverNow` : le client recale son chrono sur l’horloge serveur.
 
 ### Erreurs
 
@@ -180,53 +200,72 @@ Format unique `ApiError` (`{ error: { code, message, details? } }`), géré par 
 | 401 | `UNAUTHENTICATED` | jeton absent, invalide ou expiré |
 | 403 | `FORBIDDEN` | rôle insuffisant ou partie d’un autre joueur |
 | 404 | `NOT_FOUND` | ressource inconnue |
-| 409 | `CONFLICT` | pseudo/email déjà pris, timeout prématuré, partie déjà close |
+| 409 | `CONFLICT` | pseudo/email déjà pris, timeout prématuré, question pas encore commencée, partie déjà close |
+| 429 | `RATE_LIMITED` | trop de tentatives d’inscription ou de connexion |
 | 500 | `INTERNAL` | message générique, détail dans les logs uniquement |
 
-CORS limité à `CLIENT_ORIGIN` (origine exacte), `credentials: true`, `Vary: Origin`.
+CORS limité à `CLIENT_ORIGIN` (origine exacte), `credentials: true`, `Vary: Origin`. En-têtes de sécurité via `helmet`.
+Cache : `/themes` en `public, max-age=300`, `/leaderboard` en `no-cache`, parties, auth et back-office en `no-store`.
 
 ---
 
-## 5. Arborescence
+## 5. Client
+
+- **Écrans** : connexion/inscription, menu, partie, fin de partie, classement, back-office (questions et statistiques).
+  La scène 3D et le back-office sont chargés à la demande (`React.lazy`).
+- **Session** : le jeton d’accès vit en mémoire ; au chargement, un `POST /auth/refresh` silencieux reprend la session
+  grâce au cookie. Sur `401`, le client tente un refresh puis rejoue la requête une fois.
+- **Scène** (`client/src/game/scene`) : un décor par thème (`Theme.scenery`) plus celui du boss ; les cibles avancent
+  de `zFar` à `zNear` au rythme du chrono serveur, sans jamais infliger de dégâts. Les étiquettes de réponse sont des
+  éléments DOM projetés à chaque image (taille de police fixe, lisible).
+- **Contrôles** : clic sur « Cliquer pour viser » (pointer lock), souris pour viser, clic pour tirer (raycast depuis le
+  centre de l’écran), ZQSD/WASD pour se déplacer. Les touches `1` à `6` tirent directement sur une cible (accessibilité) :
+  cela ne donne aucun avantage, puisque le serveur valide chaque tir de la même façon. `M` coupe le son, `Échap` met en pause
+  (le chrono serveur continue).
+- **HUD** : PV, zone, progression, vie du boss, score, combo et multiplicateur, chrono, toasts de bonus, explication
+  avec lien MDN et annonce de la zone suivante.
+- **Sons** : synthétisés avec la Web Audio API (`client/src/game/audio.ts`), aucun fichier à charger.
+
+## 6. Arborescence
 
 ```text
 package.json                 workspaces npm + scripts racine
-tsconfig.base.json
 docker-compose.yml           service postgres uniquement (port 54329)
 .env.example
-README.md
-docs/
-  conception.md              ce document
-  plan-etape-1.md            brief de l’étape 1
-shared/
-  src/index.ts               réexports
-  src/dto.ts                 types publics, sans isCorrect
-  src/rules.ts               constantes et formules de score
+docs/conception.md           ce document
+shared/src/
+  dto.ts                     types publics, sans isCorrect (sauf AdminQuestionDTO)
+  rules.ts                   constantes et formules de score
 server/
-  prisma/schema.prisma
-  prisma/migrations/         migrations versionnées
-  prisma/seed.ts
-  prisma/data/themes.ts
-  prisma/data/types.ts
-  prisma/data/questions/     un fichier par thème + boss.ts
-client/
-  index.html
-  vite.config.ts             port 43123, .env lu à la racine
-  src/main.tsx               écran d’attente, pas de scène 3D
+  prisma/                    schéma, migrations, seed (data/questions/<thème>.ts + boss.ts)
+  src/
+    app.ts, index.ts, env.ts, db.ts
+    lib/                     erreurs, jetons, horloge/hasard, validation Zod
+    middlewares/             auth, rôle, origine, erreurs
+    routes/                  auth, jeu (thèmes, parties, classement), admin + stats
+    services/                auth, game (arbitrage), leaderboard (classement, stats), admin
+  test/                      tests d'intégration vitest + supertest (base *_test)
+client/src/
+  api/                       client HTTP (refresh automatique), endpoints typés
+  auth/                      contexte d'authentification
+  game/                      useGame (état synchronisé serveur), audio, scene/, hud/
+  screens/                   menu, fin, classement, admin/
 ```
-
-À partir de l’étape 2, `server/src/` accueillera `app.ts`, `env.ts`, `routes/`, `services/` (tirage, arbitrage des tirs) et `middlewares/` (auth, erreurs).
-
----
 
 ## Feuille de route
 
 | Étape | Contenu | État |
 |---|---|---|
-| 1 | Spec, monorepo, Postgres, Prisma, seed | **livrée** |
-| 2 | API Express : auth, thèmes, sessions, tirs, timeout, erreurs, CORS ; tests d’intégration | à valider |
-| 3 | Scène FPS R3F : pointer lock, raycast, cibles-réponses, une zone | à valider |
-| 4 | HUD complet, enchaînement des 6 zones, écran de fin | à valider |
-| 5 | Boss jouable, sons | à valider |
-| 6 | Bonus, mode entraînement côté client, classement | à valider |
-| 7 | Back-office admin et statistiques | à valider |
+| 1 | Spec, monorepo, Postgres, Prisma, seed | livrée |
+| 2 | API Express : auth, thèmes, sessions, tirs, timeout, erreurs, CORS ; tests d’intégration | livrée |
+| 3 | Scène FPS R3F : pointer lock, raycast, cibles-réponses | livrée |
+| 4 | HUD complet, enchaînement des 6 zones, écran de fin | livrée |
+| 5 | Boss jouable, sons | livrée |
+| 6 | Bonus, mode entraînement côté client, classement | livrée |
+| 7 | Back-office admin et statistiques | livrée |
+
+### Pistes pour la suite
+
+- Tests de bout en bout automatisés (Playwright) dans le dépôt ; ils ont été joués à la main pendant le développement.
+- Pause réelle (aujourd’hui le chrono serveur continue pendant `Échap`).
+- Modèles 3D plus riches et musique d’ambiance.

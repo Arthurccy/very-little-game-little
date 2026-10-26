@@ -32,7 +32,11 @@ export async function verifyAccessToken(token: string): Promise<AccessClaims> {
     audience: AUDIENCE,
   });
   const role = payload.role;
-  if (typeof payload.sub !== 'string' || (role !== 'PLAYER' && role !== 'ADMIN') || typeof payload.pseudo !== 'string') {
+  if (
+    typeof payload.sub !== 'string' ||
+    (role !== 'PLAYER' && role !== 'ADMIN') ||
+    typeof payload.pseudo !== 'string'
+  ) {
     throw new Error('Claims invalides');
   }
   return { sub: payload.sub, role, pseudo: payload.pseudo };

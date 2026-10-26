@@ -261,7 +261,13 @@ export async function shoot(userId: string, sessionId: string, answerId: string)
       await tx.answerLog.create({
         data: { sessionQuestionId: sq.id, answerId, outcome: 'HIT_CORRECT', elapsedMs },
       });
-      return closeQuestion(tx, session, sq, { outcome: 'HIT_CORRECT', cleared: false, penalty: HIT_CORRECT_PENALTY, elapsedMs, now });
+      return closeQuestion(tx, session, sq, {
+        outcome: 'HIT_CORRECT',
+        cleared: false,
+        penalty: HIT_CORRECT_PENALTY,
+        elapsedMs,
+        now,
+      });
     }
 
     // Mauvaise réponse éliminée : la question continue, sauf si c'était la dernière.
@@ -346,7 +352,13 @@ export async function timeout(userId: string, sessionId: string): Promise<ShotRe
 async function resolveTimeout(tx: Tx, session: LockedSession, sq: ActiveQuestion, now: Date): Promise<ShotResponse> {
   const elapsedMs = now.getTime() - sq.startedAt.getTime();
   await tx.answerLog.create({ data: { sessionQuestionId: sq.id, outcome: 'TIMEOUT', elapsedMs } });
-  return closeQuestion(tx, session, sq, { outcome: 'TIMEOUT', cleared: false, penalty: TIMEOUT_PENALTY, elapsedMs, now });
+  return closeQuestion(tx, session, sq, {
+    outcome: 'TIMEOUT',
+    cleared: false,
+    penalty: TIMEOUT_PENALTY,
+    elapsedMs,
+    now,
+  });
 }
 
 interface CloseParams {
@@ -359,7 +371,12 @@ interface CloseParams {
 }
 
 /** Clôt la question active, met à jour PV/score/combo et active la suivante (ou termine la partie). */
-async function closeQuestion(tx: Tx, session: LockedSession, sq: ActiveQuestion, p: CloseParams): Promise<ShotResponse> {
+async function closeQuestion(
+  tx: Tx,
+  session: LockedSession,
+  sq: ActiveQuestion,
+  p: CloseParams,
+): Promise<ShotResponse> {
   const training = session.mode === 'TRAINING';
   const hp = training ? session.hp : Math.max(0, session.hp - p.penalty);
   const timeLimitMs = sq.deadlineAt.getTime() - sq.startedAt.getTime();

@@ -91,7 +91,10 @@ describe('auth', () => {
     await request(app).post('/sessions').set(bearer('abc.def.ghi')).expect(401);
     const header = Buffer.from('{"alg":"none","typ":"JWT"}').toString('base64url');
     const payload = Buffer.from('{"sub":"x","role":"ADMIN","pseudo":"x"}').toString('base64url');
-    await request(app).get('/admin/questions').set(bearer(`${header}.${payload}.`)).expect(401);
+    await request(app)
+      .get('/admin/questions')
+      .set(bearer(`${header}.${payload}.`))
+      .expect(401);
   });
 });
 
@@ -110,7 +113,14 @@ describe('http', () => {
 
   it('GET /themes renvoie les 6 thèmes dans l’ordre', async () => {
     const res = await request(app).get('/themes').expect(200);
-    expect(res.body.map((t: { slug: string }) => t.slug)).toEqual(['http', 'rest', 'cors', 'auth', 'securite', 'cache']);
+    expect(res.body.map((t: { slug: string }) => t.slug)).toEqual([
+      'http',
+      'rest',
+      'cors',
+      'auth',
+      'securite',
+      'cache',
+    ]);
   });
 
   it('404 au format ApiError pour une route inconnue', async () => {

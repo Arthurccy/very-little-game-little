@@ -27,6 +27,11 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 };
 
 function isBodyParserError(err: unknown): err is { type: string } {
-  return typeof err === 'object' && err !== null && 'type' in err && typeof (err as { type: unknown }).type === 'string'
-    && (err as { type: string }).type.startsWith('entity.');
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'type' in err &&
+    typeof (err as { type: unknown }).type === 'string' &&
+    (err as { type: string }).type.startsWith('entity.')
+  );
 }
