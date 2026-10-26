@@ -33,7 +33,9 @@ export function Hud({
   onAbandon,
   bossHealth,
 }: Props) {
-  const { session, phase, now, reveal } = game;
+  const { session, phase, reveal } = game;
+  // Heure de jeu : gelée pendant une pause.
+  const now = game.clockNow;
   const shown = reveal?.question ?? game.question;
   const isBoss = shown?.zone === BOSS_ZONE;
   const training = session.mode === 'TRAINING';
@@ -193,17 +195,40 @@ export function Hud({
       {/* Toujours rendu : PointerLockControls écoute les clics sur #lock-trigger depuis son montage. */}
       <div className="lock-overlay" hidden={locked || session.status !== 'IN_PROGRESS'}>
         <button id="lock-trigger" type="button" className="btn btn--primary btn--big">
-          Cliquer pour viser
+          {session.paused ? 'Reprendre' : 'Cliquer pour viser'}
         </button>
         <p>
           Souris : viser · Clic : tirer · ZQSD / WASD : se déplacer · <kbd>1</kbd>–<kbd>6</kbd> : tirer sur une cible ·{' '}
           <kbd>M</kbd> : son · <kbd>N</kbd> : musique · <kbd>Échap</kbd> : pause
         </p>
-        <p className="muted">Attention : le chrono du serveur continue pendant la pause.</p>
+        <PauseStatus game={game} />
         <button type="button" className="btn btn--ghost" onClick={onAbandon}>
           Abandonner la partie
         </button>
       </div>
     </div>
+  );
+}
+
+/** État de la pause dans le voile : temps restant, pauses disponibles, ou chrono qui continue. */
+function PauseStatus({ game }: { game: GameController }) {
+  const { session } = game;
+  if (session.paused && session.pauseEndsAt) {
+    const left = Math.max(0, Math.ceil((Date.parse(session.pauseEndsAt) - game.now) / 1000));
+    return (
+      <p className="pause-status pause-status--on" role="status">
+        ⏸ Pause — le chrono reprend tout seul dans {left} s · {session.pausesLeft} pause
+        {session.pausesLeft > 1 ? 's' : ''} restante{session.pausesLeft > 1 ? 's' : ''}
+      </p>
+    );
+  }
+  if (session.pausesLeft === 0) {
+    return <p className="pause-status pause-status--off">Plus de pause disponible : le chrono continue.</p>;
+  }
+  return (
+    <p className="muted">
+      <kbd>Échap</kbd> ou <kbd>P</kbd> met en pause ({session.pausesLeft} restante{session.pausesLeft > 1 ? 's' : ''},{' '}
+      30 s max chacune).
+    </p>
   );
 }

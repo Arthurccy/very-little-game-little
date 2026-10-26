@@ -16,7 +16,8 @@
     "db:reset": "dotenv -e ../.env -- prisma migrate reset --force",
     "db:studio": "dotenv -e ../.env -- prisma studio",
     "typecheck": "tsc -p tsconfig.json",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "e2e:prepare": "dotenv -e ../.env -- tsx prisma/prepare-e2e.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

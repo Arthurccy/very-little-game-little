@@ -16,6 +16,8 @@ interface Props {
   question: PublicQuestion | null;
   reveal: RevealState | null;
   serverNow: () => number;
+  /** Heure serveur à laquelle le jeu est gelé (pause), sinon null. */
+  frozenAt: number | null;
   lastShot: ShotFx | null;
   lastClose: CloseFx | null;
   scenery: string | undefined;
@@ -43,6 +45,7 @@ export const World = memo(function World({
   question: shown,
   reveal,
   serverNow,
+  frozenAt,
   lastShot,
   lastClose,
   scenery,
@@ -61,7 +64,7 @@ export const World = memo(function World({
     if (!shown) return 0;
     const start = Date.parse(shown.startedAt);
     const end = Date.parse(shown.deadlineAt);
-    const t = reveal ? reveal.closedAt : serverNow();
+    const t = reveal ? reveal.closedAt : (frozenAt ?? serverNow());
     return Math.min(1, Math.max(0, (t - start) / (end - start)));
   };
   // Approche lente au début, ruée sur la fin du chrono.

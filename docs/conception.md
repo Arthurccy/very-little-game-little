@@ -83,6 +83,15 @@ points                = round(basePoints × multiplicateur(comboAvant) × bonusV
 - Le joueur peut abandonner (`POST /sessions/:id/end`) : statut `ABANDONED`, score conservé mais hors classement.
 - Une seule partie en cours par joueur : en lancer une nouvelle abandonne la précédente.
 
+### Pause
+
+- **3 pauses** par partie (`MAX_PAUSES`), **30 s** chacune au plus (`MAX_PAUSE_MS`).
+- Pendant la pause, le serveur refuse tirs et timeout (`409`). À la reprise, il décale `startedAt` et `deadlineAt`
+  de la question en cours (ou de celle qui va démarrer) de la durée de la pause, plafonnée à 30 s :
+  le temps restant et le bonus de vitesse sont exactement préservés.
+- Une pause qui dépasse 30 s se termine d’elle-même à la prochaine requête (le chrono repart).
+- Le client masque la question et les réponses pendant la pause, pour qu’on ne puisse pas s’en servir pour chercher.
+
 ### Rythme
 
 - La première question démarre **3 s** après la création (`FIRST_QUESTION_DELAY_MS`), le temps d’entrer dans la zone.
@@ -178,6 +187,8 @@ Base : `http://localhost:43124`. JSON partout. Types dans `shared/src/dto.ts`.
 | `GET /sessions/:id/summary` | propriétaire | bilan (réussies, ratées, meilleur combo) → `SessionSummaryDTO` |
 | `POST /sessions/:id/shots` | propriétaire | `{ answerId }` → valide le tir → `ShotResponse` |
 | `POST /sessions/:id/timeout` | propriétaire | clôt la question active **si** `now ≥ deadlineAt` (sinon `409`) → `TimeoutResponse` |
+| `POST /sessions/:id/pause` | propriétaire | met en pause (409 si déjà en pause ou plus de pause) → `SessionDetailResponse` |
+| `POST /sessions/:id/resume` | propriétaire | reprend, horaires décalés de la durée de la pause → `SessionDetailResponse` |
 | `POST /sessions/:id/end` | propriétaire | abandon → `EndSessionResponse` |
 | `GET /leaderboard` | public | meilleures parties `NORMAL` terminées `WON`/`LOST` → `LeaderboardEntry[]` |
 | `GET /stats/questions` | admin | taux de réussite et temps moyen par question → `QuestionStatDTO[]` |
@@ -200,7 +211,7 @@ Format unique `ApiError` (`{ error: { code, message, details? } }`), géré par 
 | 401 | `UNAUTHENTICATED` | jeton absent, invalide ou expiré |
 | 403 | `FORBIDDEN` | rôle insuffisant ou partie d’un autre joueur |
 | 404 | `NOT_FOUND` | ressource inconnue |
-| 409 | `CONFLICT` | pseudo/email déjà pris, timeout prématuré, question pas encore commencée, partie déjà close |
+| 409 | `CONFLICT` | pseudo/email déjà pris, timeout prématuré, question pas encore commencée, partie en pause ou déjà close |
 | 429 | `RATE_LIMITED` | trop de tentatives d’inscription ou de connexion |
 | 500 | `INTERNAL` | message générique, détail dans les logs uniquement |
 
@@ -220,8 +231,11 @@ Cache : `/themes` en `public, max-age=300`, `/leaderboard` en `no-cache`, partie
   éléments DOM projetés à chaque image (taille de police fixe, lisible).
 - **Contrôles** : clic sur « Cliquer pour viser » (pointer lock), souris pour viser, clic pour tirer (raycast depuis le
   centre de l’écran), ZQSD/WASD pour se déplacer. Les touches `1` à `6` tirent directement sur une cible (accessibilité) :
-  cela ne donne aucun avantage, puisque le serveur valide chaque tir de la même façon. `M` coupe le son, `Échap` met en pause
-  (le chrono serveur continue).
+  cela ne donne aucun avantage, puisque le serveur valide chaque tir de la même façon. `M` coupe le son, `Échap` (ou `P`
+  sans viser) met en pause.
+- **Tirs** : ils passent par une file d’attente côté client et partent un par un, chacun dès la réponse au précédent.
+  Aucun tir n’est perdu quand on tire vite ; un tir dont la cible est tombée entre-temps (bonus `REMOVE_WRONG`) est
+  simplement ignoré, et la file est vidée quand la question se termine.
 - **HUD** : PV, zone, progression, vie du boss, score, combo et multiplicateur, chrono, toasts de bonus, explication
   avec lien MDN et annonce de la zone suivante.
 - **Sons et musique** : tout est synthétisé avec la Web Audio API, aucun fichier à charger. Effets dans
@@ -275,6 +289,6 @@ client/src/
 
 ### Pistes pour la suite
 
-- Tests de bout en bout automatisés (Playwright) dans le dépôt ; ils ont été joués à la main pendant le développement.
-- Pause réelle (aujourd’hui le chrono serveur continue pendant `Échap`).
-- Modèles 3D plus riches et musique d’ambiance.
+- Récapitulatif des questions ratées en fin de partie, mode révision ciblé sur les erreurs.
+- Plus de questions par thème, niveaux de difficulté, classement par thème.
+- Déploiement en ligne.

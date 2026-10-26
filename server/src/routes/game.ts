@@ -65,6 +65,16 @@ sessions.post('/:id/timeout', async (req, res) => {
   res.json(await game.timeout(currentUser(req).sub, id));
 });
 
+sessions.post('/:id/pause', async (req, res) => {
+  const { id } = parse(idParam, req.params);
+  res.json(await game.pauseSession(currentUser(req).sub, id));
+});
+
+sessions.post('/:id/resume', async (req, res) => {
+  const { id } = parse(idParam, req.params);
+  res.json(await game.resumeSession(currentUser(req).sub, id));
+});
+
 sessions.post('/:id/end', async (req, res) => {
   const { id } = parse(idParam, req.params);
   res.json(await game.endSession(currentUser(req).sub, id));

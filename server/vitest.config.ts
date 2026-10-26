@@ -1,13 +1,12 @@
 import { defineConfig } from 'vitest/config';
+import { derivedDatabaseUrl } from './prisma/db-url.js';
 
 /** Les tests tournent sur une base dédiée : DATABASE_URL_TEST, ou DATABASE_URL suffixée de « _test ». */
 function testDatabaseUrl(): string {
   if (process.env.DATABASE_URL_TEST) return process.env.DATABASE_URL_TEST;
   const base = process.env.DATABASE_URL;
   if (!base) throw new Error('DATABASE_URL ou DATABASE_URL_TEST doit être défini pour les tests');
-  const url = new URL(base);
-  url.pathname = `${url.pathname}_test`;
-  return url.toString();
+  return derivedDatabaseUrl(base, '_test');
 }
 
 export default defineConfig({

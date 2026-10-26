@@ -650,3 +650,21 @@ fieldset {
     opacity: 1;
   }
 }
+
+/* Pause : la question et les réponses sont masquées pour qu'on ne puisse pas chercher. */
+.game--paused .labels,
+.game--paused .question-panel {
+  visibility: hidden;
+}
+.game--paused .world {
+  filter: blur(8px) brightness(0.6);
+}
+.pause-status {
+  font-weight: 600;
+}
+.pause-status--on {
+  color: var(--warn);
+}
+.pause-status--off {
+  color: var(--danger);
+}

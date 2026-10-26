@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  BonusDrop,
-  CreateSessionResponse,
-  PublicQuestion,
-  QuestionReveal,
-  SessionStateDTO,
-  ShotOutcome,
-  ShotResponse,
+import {
+  MAX_PAUSE_MS,
+  type BonusDrop,
+  type CreateSessionResponse,
+  type PublicQuestion,
+  type QuestionReveal,
+  type SessionDetailResponse,
+  type SessionStateDTO,
+  type ShotOutcome,
+  type ShotResponse,
 } from '@fps/shared';
 import { ApiRequestError } from '../api/client';
 import { gameApi } from '../api/endpoints';
@@ -47,9 +49,18 @@ const END_DELAY_MS = 4500;
 /** Marge après l'échéance avant de signaler le timeout (latence réseau). */
 const TIMEOUT_GRACE_MS = 150;
 
+/** Tir en attente d'envoi, rattaché à la question visée. */
+interface QueuedShot {
+  answerId: string;
+  questionId: string;
+}
+
 /**
  * État de partie piloté par le serveur. Le client ne décide de rien : il affiche,
  * envoie les tirs et signale l'échéance ; l'horloge locale est recalée sur `serverNow`.
+ *
+ * Les tirs passent par une file : un tir n'est jamais perdu parce que le précédent attend
+ * encore la réponse du serveur. La file est vidée quand la question se termine.
  */
 export function useGame(initial: CreateSessionResponse, onEnded: (session: SessionStateDTO) => void) {
   const offsetRef = useRef(Date.parse(initial.serverNow) - Date.now());
@@ -65,30 +76,48 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(serverNow);
 
-  const inFlight = useRef(false);
+  /** Question qui accepte des tirs (null pendant l'explication ou le compte à rebours suivant). */
+  const openQuestion = useRef<PublicQuestion | null>(initial.question);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+  const queue = useRef<QueuedShot[]>([]);
+  /** Une requête de jeu (tir ou timeout) est en cours : elles sont envoyées une par une. */
+  const busy = useRef(false);
   const ended = useRef(false);
+  const resyncing = useRef(false);
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
+
+  const paused = session.paused;
+  /** Début de la pause (heure serveur, ms) ; l'horloge de jeu affichée est gelée à cet instant. */
+  const pausedAt = session.pauseEndsAt ? Date.parse(session.pauseEndsAt) - MAX_PAUSE_MS : null;
+  const clockNow = paused && pausedAt !== null ? Math.min(now, pausedAt) : now;
 
   const phase: Phase =
     session.status !== 'IN_PROGRESS' && !reveal
       ? 'ended'
       : reveal
         ? 'reveal'
-        : question && now < Date.parse(question.startedAt)
+        : question && clockNow < Date.parse(question.startedAt)
           ? 'countdown'
           : 'active';
 
   const resync = useCallback(async () => {
+    if (resyncing.current) return;
+    resyncing.current = true;
     try {
       const res = await gameApi.getSession(session.id);
       offsetRef.current = Date.parse(res.serverNow) - Date.now();
+      queue.current = [];
+      openQuestion.current = res.question;
       setSession(res.session);
       setQuestion(res.question);
       setUpcoming(null);
       setReveal(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de synchronisation');
+    } finally {
+      resyncing.current = false;
     }
   }, [session.id]);
 
@@ -115,10 +144,13 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
 
       if (!res.questionClosed) {
         sfx.eliminate();
+        openQuestion.current = res.question;
         setQuestion(res.question);
         return;
       }
 
+      openQuestion.current = null;
+      queue.current = [];
       setLastClose({ outcome: res.outcome, zone: current.zone, at: performance.now() });
       const correct = res.reveal!.correctAnswerId;
       if (res.outcome === 'HIT_CORRECT') sfx.hitCorrect();
@@ -141,59 +173,129 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
     [finish],
   );
 
+  /** Envoie les tirs en attente, un par un, tant que leur question est toujours ouverte. */
+  const drain = useCallback(async () => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      while (queue.current.length > 0) {
+        const shot = queue.current.shift()!;
+        const q = openQuestion.current;
+        if (!q || q.id !== shot.questionId) continue;
+        // La cible a pu tomber entre-temps (bonus REMOVE_WRONG lâché par un tir précédent).
+        if (q.eliminatedAnswerIds.includes(shot.answerId)) continue;
+        try {
+          apply(await gameApi.shoot(session.id, shot.answerId), q, shot.answerId);
+        } catch (err) {
+          // 400 : ce tir seul est invalide, les suivants restent valables.
+          if (err instanceof ApiRequestError && err.status === 400) continue;
+          queue.current = [];
+          if (err instanceof ApiRequestError && err.status === 409) await resync();
+          else setError(err instanceof Error ? err.message : 'Tir non transmis');
+        }
+      }
+    } finally {
+      busy.current = false;
+    }
+  }, [session.id, apply, resync]);
+
+  /**
+   * Tire sur une réponse. Renvoie false si le tir ne peut pas partir (pause, compte à rebours,
+   * explication, cible déjà abattue ou déjà visée). Lit des refs : sûr depuis un gestionnaire d'événement.
+   */
   const shoot = useCallback(
-    async (answerId: string) => {
-      if (phase !== 'active' || !question || inFlight.current) {
+    (answerId: string): boolean => {
+      const q = openQuestion.current;
+      if (!q || sessionRef.current.paused || serverNow() < Date.parse(q.startedAt)) {
         sfx.denied();
-        return;
+        return false;
       }
-      if (question.eliminatedAnswerIds.includes(answerId)) return;
-      inFlight.current = true;
+      const pending = queue.current.some((s) => s.questionId === q.id && s.answerId === answerId);
+      if (q.eliminatedAnswerIds.includes(answerId) || pending) return false;
+      queue.current.push({ answerId, questionId: q.id });
       sfx.shoot();
-      try {
-        apply(await gameApi.shoot(session.id, answerId), question, answerId);
-      } catch (err) {
-        if (err instanceof ApiRequestError && (err.status === 409 || err.status === 400)) await resync();
-        else setError(err instanceof Error ? err.message : 'Tir non transmis');
-      } finally {
-        inFlight.current = false;
-      }
+      void drain();
+      return true;
     },
-    [phase, question, session.id, apply, resync],
+    [serverNow, drain],
   );
 
   const reportTimeout = useCallback(async () => {
-    if (!question || inFlight.current) return;
-    inFlight.current = true;
+    const q = openQuestion.current;
+    if (!q || busy.current) return;
+    busy.current = true;
     try {
-      apply(await gameApi.timeout(session.id), question, null);
+      apply(await gameApi.timeout(session.id), q, null);
     } catch (err) {
       if (err instanceof ApiRequestError && err.status === 409) await resync();
       else setError(err instanceof Error ? err.message : 'Erreur réseau');
     } finally {
-      inFlight.current = false;
+      busy.current = false;
     }
-  }, [question, session.id, apply, resync]);
+  }, [session.id, apply, resync]);
+
+  /** Applique la réponse de pause/reprise : état de partie et horaires décalés de la question. */
+  const applyDetail = useCallback(
+    (res: SessionDetailResponse) => {
+      offsetRef.current = Date.parse(res.serverNow) - Date.now();
+      setSession(res.session);
+      const q = res.question;
+      if (!q) return;
+      if (upcoming && q.id === upcoming.id) {
+        setUpcoming(q);
+      } else if (question && q.id === question.id) {
+        setQuestion(q);
+        if (openQuestion.current?.id === q.id) openQuestion.current = q;
+      }
+    },
+    [upcoming, question],
+  );
+
+  const pause = useCallback(async () => {
+    const s = sessionRef.current;
+    if (ended.current || s.status !== 'IN_PROGRESS' || s.paused || s.pausesLeft === 0) return;
+    try {
+      applyDetail(await gameApi.pause(s.id));
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.status === 409) await resync();
+    }
+  }, [applyDetail, resync]);
+
+  const resume = useCallback(async () => {
+    const s = sessionRef.current;
+    if (!s.paused) return;
+    try {
+      applyDetail(await gameApi.resume(s.id));
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.status === 409) await resync();
+    }
+  }, [applyDetail, resync]);
 
   // Boucle d'horloge : rafraîchit l'affichage, enchaîne la question suivante, signale l'échéance.
   useEffect(() => {
     const id = window.setInterval(() => {
       const t = serverNow();
       setNow(t);
-      if (upcoming && t >= Date.parse(upcoming.startedAt)) {
+      if (upcoming && !paused && t >= Date.parse(upcoming.startedAt)) {
+        openQuestion.current = upcoming;
         setQuestion(upcoming);
         setUpcoming(null);
         setReveal(null);
       }
     }, 100);
     return () => window.clearInterval(id);
-  }, [serverNow, upcoming]);
+  }, [serverNow, upcoming, paused]);
 
   useEffect(() => {
-    if (phase === 'active' && question && now >= Date.parse(question.deadlineAt) + TIMEOUT_GRACE_MS) {
+    if (!paused && phase === 'active' && question && now >= Date.parse(question.deadlineAt) + TIMEOUT_GRACE_MS) {
       void reportTimeout();
     }
-  }, [phase, question, now, reportTimeout]);
+  }, [paused, phase, question, now, reportTimeout]);
+
+  // Pause expirée côté serveur : on se resynchronise (le serveur relance le chrono).
+  useEffect(() => {
+    if (paused && session.pauseEndsAt && now >= Date.parse(session.pauseEndsAt)) void resync();
+  }, [paused, session.pauseEndsAt, now, resync]);
 
   const abandon = useCallback(async () => {
     try {
@@ -212,6 +314,10 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
     reveal,
     phase,
     now,
+    /** Heure de jeu : gelée pendant une pause. À utiliser pour les chronos affichés. */
+    clockNow,
+    paused,
+    pausedAt,
     serverNow,
     lastShot,
     lastClose,
@@ -219,6 +325,8 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
     error,
     clearError: () => setError(null),
     shoot,
+    pause,
+    resume,
     abandon,
   };
 }

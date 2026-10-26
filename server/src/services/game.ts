@@ -12,6 +12,8 @@ import {
   HEAL_AMOUNT,
   HIT_CORRECT_PENALTY,
   INTER_QUESTION_DELAY_MS,
+  MAX_PAUSES,
+  MAX_PAUSE_MS,
   SLOW_TIME_BONUS_MS,
   STANDARD_QUESTIONS_PER_ZONE,
   STARTING_HP,
@@ -55,6 +57,9 @@ function toSessionState(s: GameSession, total: number): SessionStateDTO {
     multiplier: s.multiplier,
     currentIndex: s.currentIndex,
     total,
+    paused: s.pausedAt !== null,
+    pauseEndsAt: s.pausedAt ? new Date(s.pausedAt.getTime() + MAX_PAUSE_MS).toISOString() : null,
+    pausesLeft: Math.max(0, MAX_PAUSES - s.pausesUsed),
   };
 }
 
@@ -97,6 +102,78 @@ async function lockSession(tx: Tx, sessionId: string, userId: string): Promise<L
 
 function assertInProgress(session: GameSession): void {
   if (session.status !== 'IN_PROGRESS') throw conflict('La partie est terminée');
+}
+
+// --- Pause --------------------------------------------------------------
+
+/**
+ * Termine la pause : la question active (ou celle qui va démarrer) est décalée de la durée
+ * de la pause, plafonnée à MAX_PAUSE_MS. Le temps restant et le bonus de vitesse sont préservés.
+ */
+async function endPause(tx: Tx, session: LockedSession, now: Date): Promise<LockedSession> {
+  if (!session.pausedAt) return session;
+  const pausedMs = Math.min(MAX_PAUSE_MS, now.getTime() - session.pausedAt.getTime());
+  const active = await tx.sessionQuestion.findUnique({
+    where: { sessionId_position: { sessionId: session.id, position: session.currentIndex } },
+  });
+  if (active?.status === 'ACTIVE' && active.startedAt && active.deadlineAt) {
+    await tx.sessionQuestion.update({
+      where: { id: active.id },
+      data: {
+        startedAt: new Date(active.startedAt.getTime() + pausedMs),
+        deadlineAt: new Date(active.deadlineAt.getTime() + pausedMs),
+      },
+    });
+  }
+  const updated = await tx.gameSession.update({ where: { id: session.id }, data: { pausedAt: null } });
+  return { ...updated, total: session.total };
+}
+
+/** Une pause qui a dépassé sa durée maximale se termine d'elle-même à la prochaine action. */
+async function settlePause(tx: Tx, session: LockedSession, now: Date): Promise<LockedSession> {
+  if (session.pausedAt && now.getTime() - session.pausedAt.getTime() >= MAX_PAUSE_MS) {
+    return endPause(tx, session, now);
+  }
+  return session;
+}
+
+function assertNotPaused(session: GameSession): void {
+  if (session.pausedAt) throw conflict('La partie est en pause');
+}
+
+async function detail(tx: Tx, session: LockedSession, now: Date): Promise<SessionDetailResponse> {
+  const sq = session.status === 'IN_PROGRESS' ? await loadQuestionAt(tx, session.id, session.currentIndex) : null;
+  return {
+    session: toSessionState(session, session.total),
+    question: sq ? toPublicQuestion(sq, session.total) : null,
+    serverNow: now.toISOString(),
+  };
+}
+
+export async function pauseSession(userId: string, sessionId: string): Promise<SessionDetailResponse> {
+  return prisma.$transaction(async (tx) => {
+    const now = clock.now();
+    let session = await lockSession(tx, sessionId, userId);
+    assertInProgress(session);
+    session = await settlePause(tx, session, now);
+    if (session.pausedAt) throw conflict('La partie est déjà en pause');
+    if (session.pausesUsed >= MAX_PAUSES) throw conflict('Plus de pause disponible');
+    const updated = await tx.gameSession.update({
+      where: { id: session.id },
+      data: { pausedAt: now, pausesUsed: { increment: 1 } },
+    });
+    return detail(tx, { ...updated, total: session.total }, now);
+  });
+}
+
+export async function resumeSession(userId: string, sessionId: string): Promise<SessionDetailResponse> {
+  return prisma.$transaction(async (tx) => {
+    const now = clock.now();
+    const session = await lockSession(tx, sessionId, userId);
+    assertInProgress(session);
+    if (!session.pausedAt) throw conflict('La partie n’est pas en pause');
+    return detail(tx, await endPause(tx, session, now), now);
+  });
 }
 
 async function loadQuestionAt(tx: Tx, sessionId: string, position: number): Promise<ActiveQuestion | null> {
@@ -196,13 +273,10 @@ export async function createSession(userId: string, mode: GameMode): Promise<Cre
 
 export async function getSession(userId: string, sessionId: string): Promise<SessionDetailResponse> {
   return prisma.$transaction(async (tx) => {
-    const session = await lockSession(tx, sessionId, userId);
-    const sq = session.status === 'IN_PROGRESS' ? await loadQuestionAt(tx, session.id, session.currentIndex) : null;
-    return {
-      session: toSessionState(session, session.total),
-      question: sq ? toPublicQuestion(sq, session.total) : null,
-      serverNow: clock.now().toISOString(),
-    };
+    const now = clock.now();
+    let session = await lockSession(tx, sessionId, userId);
+    if (session.status === 'IN_PROGRESS') session = await settlePause(tx, session, now);
+    return detail(tx, session, now);
   });
 }
 
@@ -242,10 +316,12 @@ export async function getSummary(userId: string, sessionId: string): Promise<Ses
 
 export async function shoot(userId: string, sessionId: string, answerId: string): Promise<ShotResponse> {
   return prisma.$transaction(async (tx) => {
-    const session = await lockSession(tx, sessionId, userId);
-    assertInProgress(session);
-    const sq = await loadActive(tx, session);
     const now = clock.now();
+    let session = await lockSession(tx, sessionId, userId);
+    assertInProgress(session);
+    session = await settlePause(tx, session, now);
+    assertNotPaused(session);
+    const sq = await loadActive(tx, session);
 
     if (now < sq.startedAt) throw conflict('La question n’a pas encore commencé');
     if (now >= sq.deadlineAt) return resolveTimeout(tx, session, sq, now);
@@ -340,10 +416,12 @@ function rollBonus(session: GameSession, hp: number, remainingWrong: number): Bo
 
 export async function timeout(userId: string, sessionId: string): Promise<ShotResponse> {
   return prisma.$transaction(async (tx) => {
-    const session = await lockSession(tx, sessionId, userId);
-    assertInProgress(session);
-    const sq = await loadActive(tx, session);
     const now = clock.now();
+    let session = await lockSession(tx, sessionId, userId);
+    assertInProgress(session);
+    session = await settlePause(tx, session, now);
+    assertNotPaused(session);
+    const sq = await loadActive(tx, session);
     if (now < sq.deadlineAt) throw conflict('Le chrono n’est pas écoulé');
     return resolveTimeout(tx, session, sq, now);
   });
@@ -459,7 +537,7 @@ export async function endSession(userId: string, sessionId: string): Promise<End
     });
     const updated = await tx.gameSession.update({
       where: { id: session.id },
-      data: { status: 'ABANDONED', endedAt: now },
+      data: { status: 'ABANDONED', endedAt: now, pausedAt: null },
     });
     return { session: toSessionState(updated, session.total) };
   });

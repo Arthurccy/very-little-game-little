@@ -39,7 +39,7 @@ Connecte-toi avec le compte admin du `.env` pour accéder au back-office, ou cr�
 | Tirer directement sur la cible n | `1` à `6` |
 | Couper le son | `M` |
 | Couper la musique | `N` |
-| Pause | `Échap` (le chrono serveur continue) |
+| Pause / reprise | `Échap` (ou `P` sans viser) : 3 pauses de 30 s max, chrono gelé, question masquée |
 
 ## Scripts racine
 
@@ -49,12 +49,22 @@ Connecte-toi avec le compte admin du `.env` pour accéder au back-office, ou cr�
 | `npm run dev:server` / `dev:client` | l’un ou l’autre |
 | `npm run play` | version optimisée (build de production du client) : la plus fluide pour jouer |
 | `npm test` | tests d’intégration de l’API (base `<DATABASE_URL>_test`, créée et vidée automatiquement) |
+| `npm run test:e2e` | tests de bout en bout Playwright : lance l’API et le client sur des ports dédiés, base `<DATABASE_URL>_e2e` |
+| `npm run format` / `format:check` | formatage Prettier |
 | `npm run typecheck` | `tsc` sur les trois workspaces |
 | `npm run build:client` | build de production du client |
 | `npm run db:up` / `db:down` | démarre / arrête le conteneur Postgres |
 | `npm run db:migrate` | `prisma migrate dev` (ajouter `-- --name <nom>` pour une nouvelle migration) |
 | `npm run db:seed` | rejoue le seed (rejouable sans doublons) |
 | `npm run db:reset` | vide la base, rejoue migrations et seed |
+
+## Tests et CI
+
+- **API** (`server/test`, Vitest + Supertest) : authentification, arbitrage des tirs, bonus, pause, back-office.
+- **Bout en bout** (`e2e/`, Playwright) : inscription et reprise de session, tirs rapides, pénalités, pause,
+  entraînement, abandon, back-office. Première fois : `npx playwright install chromium` dans `e2e/`.
+- **CI** (`.github/workflows/ci.yml`) : à chaque pull request et sur `main`, formatage, types, tests API,
+  build du client et tests de bout en bout, chacun avec son PostgreSQL 16.
 
 ## Structure
 
@@ -63,6 +73,7 @@ Connecte-toi avec le compte admin du `.env` pour accéder au back-office, ou cr�
 | `shared/` | DTO publics (jamais de `isCorrect`) et règles de score partagées |
 | `server/` | API Express + Prisma : auth JWT/refresh, arbitrage des parties, classement, back-office |
 | `client/` | Vite + React + React Three Fiber : scène FPS, HUD, menus, back-office |
+| `e2e/` | tests de bout en bout Playwright |
 
 Ports locaux : Postgres `54329`, API `43124`, Vite `43123`. Si l’API annonce `EADDRINUSE`, le port est pris
 (il est dans la plage éphémère de Linux) : change `API_PORT` et `VITE_API_URL` dans `.env`.

@@ -88,6 +88,10 @@ export interface SessionStateDTO {
   multiplier: number;
   currentIndex: number;
   total: number;
+  /** Pause en cours : le chrono serveur est gelé jusqu'à la reprise ou jusqu'à `pauseEndsAt`. */
+  paused: boolean;
+  pauseEndsAt: string | null;
+  pausesLeft: number;
 }
 
 export interface CreateSessionRequest {

@@ -33,6 +33,8 @@ export const gameApi = {
   shoot: (id: string, answerId: string) => post<ShotResponse>(`/sessions/${id}/shots`, { answerId }),
   timeout: (id: string) => post<TimeoutResponse>(`/sessions/${id}/timeout`),
   end: (id: string) => post<EndSessionResponse>(`/sessions/${id}/end`),
+  pause: (id: string) => post<SessionDetailResponse>(`/sessions/${id}/pause`),
+  resume: (id: string) => post<SessionDetailResponse>(`/sessions/${id}/resume`),
 };
 
 export const adminApi = {

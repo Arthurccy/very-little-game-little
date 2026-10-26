@@ -57,3 +57,8 @@ export const SLOW_TIME_BONUS_MS = 5000;
 export const HEAL_AMOUNT = 15;
 /** Délai avant la toute première question (compte à rebours d'entrée dans la zone 1). */
 export const FIRST_QUESTION_DELAY_MS = 3000;
+
+/** Pauses autorisées par partie. */
+export const MAX_PAUSES = 3;
+/** Durée maximale d'une pause : au-delà, le chrono repart tout seul. */
+export const MAX_PAUSE_MS = 30_000;

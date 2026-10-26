@@ -47,8 +47,18 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
   const shootRef = useRef(game.shoot);
   shootRef.current = game.shoot;
   const handleShoot = useCallback((answerId: string | null) => {
-    if (answerId) void shootRef.current(answerId);
+    if (answerId) shootRef.current(answerId);
     else sfx.shoot();
+  }, []);
+
+  // Échap libère la souris : on met la partie en pause. Reprendre la visée relance le chrono.
+  const pauseRef = useRef(game.pause);
+  pauseRef.current = game.pause;
+  const resumeRef = useRef(game.resume);
+  resumeRef.current = game.resume;
+  const handleLockChange = useCallback((isLocked: boolean) => {
+    setLocked(isLocked);
+    void (isLocked ? resumeRef.current() : pauseRef.current());
   }, []);
 
   // Raccourcis clavier : 1 à 6 visent directement une cible (accessibilité), M coupe le son.
@@ -56,15 +66,13 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyM') toggleMute();
       if (e.code === 'KeyN') toggleMusic();
+      // P : pause sans passer par le verrouillage de la souris (ou reprise).
+      if (e.code === 'KeyP' && !document.pointerLockElement) void (game.paused ? game.resume() : game.pause());
       const n = Number.parseInt(e.key, 10);
       if (n >= 1 && n <= 6 && game.question) {
         const answer = game.question.answers[n - 1];
-        if (!answer) return;
-        // La balle ne part que si le tir peut être accepté (cible vivante, question en cours).
-        if (game.phase === 'active' && !game.question.eliminatedAnswerIds.includes(answer.id)) {
-          setAimShot({ answerId: answer.id, at: performance.now() });
-        }
-        void game.shoot(answer.id);
+        // La balle ne part que si le tir est accepté (cible vivante, question en cours, pas de pause).
+        if (answer && game.shoot(answer.id)) setAimShot({ answerId: answer.id, at: performance.now() });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -109,17 +117,18 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
   const hurt = game.lastClose?.outcome !== 'ELIMINATED_WRONG' && sinceClose >= 0 && sinceClose < 450;
 
   return (
-    <div className={`game ${hurt ? 'game--hurt' : ''}`}>
+    <div className={`game ${hurt ? 'game--hurt' : ''} ${game.paused ? 'game--paused' : ''}`}>
       <World
         question={shown}
         reveal={game.reveal}
         serverNow={game.serverNow}
+        frozenAt={game.paused ? game.pausedAt : null}
         lastShot={game.lastShot}
         lastClose={game.lastClose}
         scenery={theme?.scenery}
         bossHealth={bossHealth}
         onShoot={handleShoot}
-        onLockChange={setLocked}
+        onLockChange={handleLockChange}
         aimShot={aimShot}
       />
       <Hud

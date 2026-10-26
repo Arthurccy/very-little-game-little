@@ -142,6 +142,10 @@ model GameSession {
   multiplier   Float         @default(1)
   /// Position (0-based) de la question en cours dans la série.
   currentIndex Int           @default(0)
+  /// Début de la pause en cours (null si la partie n'est pas en pause).
+  pausedAt     DateTime?
+  /// Nombre de pauses déjà prises (limité, voir MAX_PAUSES).
+  pausesUsed   Int           @default(0)
   startedAt    DateTime      @default(now())
   endedAt      DateTime?
 
