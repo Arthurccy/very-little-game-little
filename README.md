@@ -45,6 +45,7 @@ Connecte-toi avec le compte admin du `.env` pour accéder au back-office, ou cr�
 |---|---|
 | `npm run dev` | API (rechargement à chaud) et client Vite en parallèle |
 | `npm run dev:server` / `dev:client` | l’un ou l’autre |
+| `npm run play` | version optimisée (build de production du client) : la plus fluide pour jouer |
 | `npm test` | tests d’intégration de l’API (base `<DATABASE_URL>_test`, créée et vidée automatiquement) |
 | `npm run typecheck` | `tsc` sur les trois workspaces |
 | `npm run build:client` | build de production du client |

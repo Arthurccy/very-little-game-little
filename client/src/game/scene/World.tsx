@@ -1,8 +1,9 @@
-import { useCallback, useRef } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { PerformanceMonitor } from '@react-three/drei';
 import { Vector3, type Group } from 'three';
 import { BOSS_ZONE, type PublicQuestion } from '@fps/shared';
-import type { GameController } from '../useGame';
+import type { RevealState, ShotFx } from '../useGame';
 import { Boss } from './Boss';
 import { Environment } from './Environment';
 import { LabelProjector } from './Labels';
@@ -11,7 +12,11 @@ import { ARENA, sceneryFor } from './sceneries';
 import { Target, type TargetState } from './Target';
 
 interface Props {
-  game: GameController;
+  /** Question affichée : la question close pendant l'explication, sinon la question en cours. */
+  question: PublicQuestion | null;
+  reveal: RevealState | null;
+  serverNow: () => number;
+  lastShot: ShotFx | null;
   scenery: string | undefined;
   bossHealth: number;
   onShoot: (answerId: string | null) => void;
@@ -25,8 +30,26 @@ function spreadX(index: number, count: number): number {
   return count === 1 ? 0 : -width / 2 + (width * index) / (count - 1);
 }
 
-export function World({ game, scenery, bossHealth, onShoot, onLockChange, aimShot }: Props) {
-  const shown: PublicQuestion | null = game.reveal?.question ?? game.question;
+/** Résolution de rendu (devicePixelRatio) : plafonnée, et abaissée si les FPS chutent. */
+const DPR_MAX = 1.5;
+const DPR_MIN = 0.75;
+
+/**
+ * Scène 3D. Mémoïsée : elle ne se re-rend que quand la question, l'explication ou un tir
+ * changent, pas à chaque tic du chrono (le mouvement des cibles est calculé dans useFrame).
+ */
+export const World = memo(function World({
+  question: shown,
+  reveal,
+  serverNow,
+  lastShot,
+  scenery,
+  bossHealth,
+  onShoot,
+  onLockChange,
+  aimShot,
+}: Props) {
+  const [dpr, setDpr] = useState(() => Math.min(window.devicePixelRatio, DPR_MAX));
   const isBoss = shown?.zone === BOSS_ZONE;
   const palette = sceneryFor(isBoss ? 'boss' : scenery);
 
@@ -36,7 +59,7 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange, aimSho
     if (!shown) return ARENA.zFar;
     const start = Date.parse(shown.startedAt);
     const end = Date.parse(shown.deadlineAt);
-    const t = game.reveal ? game.reveal.closedAt : game.serverNow();
+    const t = reveal ? reveal.closedAt : serverNow();
     const k = Math.min(1, Math.max(0, (t - start) / (end - start)));
     return ARENA.zFar + (ARENA.zNear - ARENA.zFar) * k;
   };
@@ -57,9 +80,9 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange, aimSho
   }, []);
 
   const stateOf = (answerId: string): TargetState => {
-    if (game.reveal) {
-      if (answerId === game.reveal.reveal.correctAnswerId) {
-        return game.reveal.outcome === 'HIT_CORRECT' ? 'correct-hit' : 'correct';
+    if (reveal) {
+      if (answerId === reveal.reveal.correctAnswerId) {
+        return reveal.outcome === 'HIT_CORRECT' ? 'correct-hit' : 'correct';
       }
       return 'eliminated';
     }
@@ -68,11 +91,18 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange, aimSho
 
   return (
     <>
-      <Canvas shadows="percentage" camera={{ fov: 70, near: 0.1, far: 120 }} className="world">
+      <Canvas
+        dpr={dpr}
+        camera={{ fov: 70, near: 0.1, far: 120 }}
+        gl={{ powerPreference: 'high-performance' }}
+        className="world"
+      >
+        <PerformanceMonitor
+          onDecline={() => setDpr((d) => Math.max(DPR_MIN, d - 0.25))}
+          onIncline={() => setDpr((d) => Math.min(DPR_MAX, window.devicePixelRatio, d + 0.25))}
+        />
         <Environment scenery={palette} />
-        {isBoss && (
-          <Boss health={bossHealth} hurtAt={game.lastShot?.outcome === 'ELIMINATED_WRONG' ? game.lastShot.at : null} />
-        )}
+        {isBoss && <Boss health={bossHealth} hurtAt={lastShot?.outcome === 'ELIMINATED_WRONG' ? lastShot.at : null} />}
         {shown?.answers.map((a, i) => (
           <Target
             key={`${shown.id}:${a.id}`}
@@ -82,7 +112,7 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange, aimSho
             getZ={getZ}
             state={stateOf(a.id)}
             accent={palette.accent}
-            hitAt={game.lastShot?.answerId === a.id ? game.lastShot.at : null}
+            hitAt={lastShot?.answerId === a.id ? lastShot.at : null}
             boss={isBoss}
             register={register}
           />
@@ -117,4 +147,4 @@ export function World({ game, scenery, bossHealth, onShoot, onLockChange, aimSho
       </div>
     </>
   );
-}
+});

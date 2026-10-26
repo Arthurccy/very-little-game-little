@@ -24,24 +24,25 @@ export function Environment({ scenery }: { scenery: Scenery }) {
       <fog attach="fog" args={[scenery.fog, 18, 55]} />
       <ambientLight intensity={0.6} />
       <hemisphereLight args={[scenery.light, scenery.floor, 1.4]} />
-      <directionalLight position={[6, 14, 8]} intensity={2} color={scenery.light} castShadow />
+      <directionalLight position={[6, 14, 8]} intensity={2} color={scenery.light} />
       <pointLight position={[0, 6, -4]} intensity={60} distance={30} color={scenery.accent} />
 
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0, -8]} receiveShadow>
+      {/* Sol et murs couvrent la majeure partie de l'écran : matériau Lambert, moins coûteux par pixel. */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, -8]}>
         <planeGeometry args={[ARENA.halfWidth * 2, ARENA.depth]} />
-        <meshStandardMaterial color={scenery.floor} roughness={0.9} />
+        <meshLambertMaterial color={scenery.floor} />
       </mesh>
       <gridHelper args={[ARENA.depth, 20, scenery.accent, scenery.wall]} position={[0, 0.01, -8]} />
 
       {[-1, 1].map((side) => (
         <mesh key={side} position={[side * ARENA.halfWidth, 4, -8]}>
           <boxGeometry args={[0.5, 8, ARENA.depth]} />
-          <meshStandardMaterial color={scenery.wall} />
+          <meshLambertMaterial color={scenery.wall} />
         </mesh>
       ))}
       <mesh position={[0, 4, -28]}>
         <boxGeometry args={[ARENA.halfWidth * 2, 8, 0.5]} />
-        <meshStandardMaterial color={scenery.wall} />
+        <meshLambertMaterial color={scenery.wall} />
       </mesh>
 
       {props.map((p, i) => (
@@ -72,7 +73,7 @@ function Prop({
   switch (kind) {
     case 'crate':
       return (
-        <mesh position={[x, 0.6 * s, z]} rotation-y={rot} castShadow>
+        <mesh position={[x, 0.6 * s, z]} rotation-y={rot}>
           <boxGeometry args={[1.2 * s, 1.2 * s, 1.2 * s]} />
           <meshStandardMaterial color={accent} roughness={1} />
         </mesh>

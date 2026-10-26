@@ -74,11 +74,11 @@ export function Target({ answer, index, x, getZ, state, accent, hitAt, boss, reg
   return (
     <group ref={group} position={[x, 0, getZ()]} userData={{ answerId: answer.id, alive: state === 'alive' }}>
       <group scale={scale}>
-        <mesh position={[0, 1.1, 0]} castShadow>
+        <mesh position={[0, 1.1, 0]}>
           <capsuleGeometry args={[0.45, 1, 6, 12]} />
           <meshStandardMaterial ref={body} color={color} emissive={color} emissiveIntensity={0.25} roughness={0.5} />
         </mesh>
-        <mesh position={[0, 2.05, 0]} castShadow>
+        <mesh position={[0, 2.05, 0]}>
           <sphereGeometry args={[0.32, 16, 16]} />
           <meshStandardMaterial color={color} roughness={0.4} />
         </mesh>

@@ -35,13 +35,13 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
     setMutedState(isMuted());
   }, []);
 
-  const handleShoot = useCallback(
-    (answerId: string | null) => {
-      if (answerId) void game.shoot(answerId);
-      else sfx.shoot();
-    },
-    [game],
-  );
+  // Référence stable vers la dernière version de `shoot`, pour ne pas faire re-rendre la scène.
+  const shootRef = useRef(game.shoot);
+  shootRef.current = game.shoot;
+  const handleShoot = useCallback((answerId: string | null) => {
+    if (answerId) void shootRef.current(answerId);
+    else sfx.shoot();
+  }, []);
 
   // Raccourcis clavier : 1 à 6 visent directement une cible (accessibilité), M coupe le son.
   useEffect(() => {
@@ -89,7 +89,10 @@ export function GameScreen({ initial, themes, onEnded }: Props) {
       className={`game ${game.lastShot?.outcome === 'HIT_CORRECT' && performance.now() - game.lastShot.at < 400 ? 'game--hurt' : ''}`}
     >
       <World
-        game={game}
+        question={shown}
+        reveal={game.reveal}
+        serverNow={game.serverNow}
+        lastShot={game.lastShot}
         scenery={theme?.scenery}
         bossHealth={bossHealth}
         onShoot={handleShoot}

@@ -1,6 +1,6 @@
-import { useImperativeHandle, useRef, type Ref } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { Vector3, type Group, type Mesh, type MeshBasicMaterial, type PointLight } from 'three';
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { createPortal, useFrame, useThree } from '@react-three/fiber';
+import { Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three';
 
 /** Vitesse des balles traçantes, en unités par seconde. */
 const BULLET_SPEED = 80;
@@ -31,14 +31,16 @@ interface Bullet {
 const NO_RAY = { ignoreRay: true };
 
 /**
- * Arme à la première personne collée à la caméra, avec recul, flash de bouche,
- * balles traçantes et étincelles d'impact. Purement visuel : le tir est validé par le serveur.
+ * Arme à la première personne, avec recul, flash de bouche, balles traçantes et étincelles
+ * d'impact. Purement visuel : le tir est validé par le serveur.
+ *
+ * L'arme est un enfant de la caméra (portail R3F) : elle reste parfaitement fixe à l'écran,
+ * sans le décalage d'une image qu'on aurait en recopiant la position de la caméra.
  */
 export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponHandle> }) {
-  const { camera } = useThree();
+  const { camera, scene } = useThree();
   const gun = useRef<Group>(null);
   const muzzleFlash = useRef<Mesh>(null);
-  const flashLight = useRef<PointLight>(null);
   const bulletMeshes = useRef<(Mesh | null)[]>([]);
   const impactMeshes = useRef<(Mesh | null)[]>([]);
   const bullets = useRef<Bullet[]>(
@@ -55,9 +57,14 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
   const recoil = useRef(0);
   const flashUntil = useRef(0);
   const clock = useRef(0);
-  const tmp = useRef(new Vector3());
-  const lastCam = useRef(new Vector3());
-  const sway = useRef(0);
+
+  // La caméra doit faire partie de la scène pour que ses enfants (l'arme) soient rendus.
+  useEffect(() => {
+    scene.add(camera);
+    return () => {
+      scene.remove(camera);
+    };
+  }, [scene, camera]);
 
   useImperativeHandle(handle, () => ({
     fire: (target) => {
@@ -66,7 +73,7 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
       if (muzzleFlash.current) muzzleFlash.current.rotation.z = Math.random() * Math.PI;
       const g = gun.current;
       if (!g) return;
-      g.updateMatrixWorld();
+      g.updateWorldMatrix(true, false);
       const b = bullets.current[next.current]!;
       next.current = (next.current + 1) % BULLET_POOL;
       b.from.copy(MUZZLE).applyMatrix4(g.matrixWorld);
@@ -83,21 +90,10 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
     const t = clock.current;
     const g = gun.current;
 
-    // Léger balancement quand le joueur se déplace.
-    const moved = lastCam.current.distanceTo(camera.position);
-    lastCam.current.copy(camera.position);
-    sway.current += moved * 9;
-    const bob = moved > 0.001 ? 1 : 0;
-
     recoil.current = Math.max(0, recoil.current - delta * 7);
     if (g) {
-      g.position.copy(camera.position);
-      g.quaternion.copy(camera.quaternion);
-      g.translateX(GUN_OFFSET.x + Math.sin(sway.current) * 0.01 * bob);
-      g.translateY(GUN_OFFSET.y + Math.abs(Math.cos(sway.current)) * 0.008 * bob);
-      g.translateZ(GUN_OFFSET.z + recoil.current * 0.06);
-      g.rotateY(GUN_YAW);
-      g.rotateX(recoil.current * 0.14);
+      g.position.set(GUN_OFFSET.x, GUN_OFFSET.y, GUN_OFFSET.z + recoil.current * 0.06);
+      g.rotation.set(recoil.current * 0.14, GUN_YAW, 0);
     }
 
     const flashing = t < flashUntil.current;
@@ -105,7 +101,6 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
       muzzleFlash.current.visible = flashing;
       muzzleFlash.current.scale.setScalar(0.8 + Math.random() * 0.5);
     }
-    if (flashLight.current) flashLight.current.intensity = flashing ? 8 : 0;
 
     bullets.current.forEach((b, i) => {
       const mesh = bulletMeshes.current[i];
@@ -120,8 +115,7 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
           } else {
             mesh.visible = true;
             mesh.position.lerpVectors(b.from, b.to, k);
-            tmp.current.copy(b.to);
-            mesh.lookAt(tmp.current);
+            mesh.lookAt(b.to);
           }
         } else {
           mesh.visible = false;
@@ -144,51 +138,53 @@ export function Weapon({ accent, handle }: { accent: string; handle: Ref<WeaponH
 
   return (
     <>
-      <group ref={gun} userData={NO_RAY}>
-        {/* Carcasse */}
-        <mesh position={[0, 0, -0.05]}>
-          <boxGeometry args={[0.07, 0.09, 0.32]} />
-          <meshStandardMaterial {...metal} />
-        </mesh>
-        {/* Rail et guidon */}
-        <mesh position={[0, 0.055, -0.05]}>
-          <boxGeometry args={[0.03, 0.02, 0.26]} />
-          <meshStandardMaterial {...dark} />
-        </mesh>
-        <mesh position={[0, 0.072, -0.17]}>
-          <boxGeometry args={[0.012, 0.025, 0.012]} />
-          <meshStandardMaterial {...dark} />
-        </mesh>
-        {/* Bande lumineuse aux couleurs de la zone */}
-        <mesh position={[0, 0.005, -0.06]}>
-          <boxGeometry args={[0.072, 0.012, 0.2]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.2} toneMapped={false} />
-        </mesh>
-        {/* Canon et frein de bouche */}
-        <mesh position={[0, 0.015, -0.29]} rotation-x={Math.PI / 2}>
-          <cylinderGeometry args={[0.017, 0.017, 0.16, 12]} />
-          <meshStandardMaterial {...metal} />
-        </mesh>
-        <mesh position={[0, 0.015, -0.37]} rotation-x={Math.PI / 2}>
-          <cylinderGeometry args={[0.025, 0.025, 0.04, 12]} />
-          <meshStandardMaterial {...dark} />
-        </mesh>
-        {/* Poignée et chargeur */}
-        <mesh position={[0, -0.1, 0.05]} rotation-x={-0.25}>
-          <boxGeometry args={[0.055, 0.13, 0.06]} />
-          <meshStandardMaterial {...dark} />
-        </mesh>
-        <mesh position={[0, -0.1, -0.1]} rotation-x={0.15}>
-          <boxGeometry args={[0.045, 0.12, 0.05]} />
-          <meshStandardMaterial {...metal} />
-        </mesh>
-        {/* Flash de bouche */}
-        <mesh ref={muzzleFlash} position={MUZZLE} visible={false}>
-          <circleGeometry args={[0.06, 6]} />
-          <meshBasicMaterial color="#fde68a" toneMapped={false} transparent opacity={0.9} />
-        </mesh>
-        <pointLight ref={flashLight} position={MUZZLE} color="#fde68a" intensity={0} distance={5} />
-      </group>
+      {createPortal(
+        <group ref={gun} userData={NO_RAY} position={GUN_OFFSET} rotation-y={GUN_YAW}>
+          {/* Carcasse */}
+          <mesh position={[0, 0, -0.05]}>
+            <boxGeometry args={[0.07, 0.09, 0.32]} />
+            <meshStandardMaterial {...metal} />
+          </mesh>
+          {/* Rail et guidon */}
+          <mesh position={[0, 0.055, -0.05]}>
+            <boxGeometry args={[0.03, 0.02, 0.26]} />
+            <meshStandardMaterial {...dark} />
+          </mesh>
+          <mesh position={[0, 0.072, -0.17]}>
+            <boxGeometry args={[0.012, 0.025, 0.012]} />
+            <meshStandardMaterial {...dark} />
+          </mesh>
+          {/* Bande lumineuse aux couleurs de la zone */}
+          <mesh position={[0, 0.005, -0.06]}>
+            <boxGeometry args={[0.072, 0.012, 0.2]} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.2} toneMapped={false} />
+          </mesh>
+          {/* Canon et frein de bouche */}
+          <mesh position={[0, 0.015, -0.29]} rotation-x={Math.PI / 2}>
+            <cylinderGeometry args={[0.017, 0.017, 0.16, 12]} />
+            <meshStandardMaterial {...metal} />
+          </mesh>
+          <mesh position={[0, 0.015, -0.37]} rotation-x={Math.PI / 2}>
+            <cylinderGeometry args={[0.025, 0.025, 0.04, 12]} />
+            <meshStandardMaterial {...dark} />
+          </mesh>
+          {/* Poignée et chargeur */}
+          <mesh position={[0, -0.1, 0.05]} rotation-x={-0.25}>
+            <boxGeometry args={[0.055, 0.13, 0.06]} />
+            <meshStandardMaterial {...dark} />
+          </mesh>
+          <mesh position={[0, -0.1, -0.1]} rotation-x={0.15}>
+            <boxGeometry args={[0.045, 0.12, 0.05]} />
+            <meshStandardMaterial {...metal} />
+          </mesh>
+          {/* Flash de bouche */}
+          <mesh ref={muzzleFlash} position={MUZZLE} visible={false}>
+            <circleGeometry args={[0.06, 6]} />
+            <meshBasicMaterial color="#fde68a" toneMapped={false} transparent opacity={0.9} />
+          </mesh>
+        </group>,
+        camera,
+      )}
 
       {bullets.current.map((_, i) => (
         <mesh
