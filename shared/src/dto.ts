@@ -70,7 +70,10 @@ export interface PublicQuestion {
   /** Réponses déjà éliminées sur cette question. */
   eliminatedAnswerIds: string[];
   timeLimitMs: number;
-  /** Horodatage serveur ISO du début de question et de l'échéance. */
+  /**
+   * Horodatage serveur ISO du début de question et de l'échéance. `startedAt` peut être
+   * dans le futur : la question suivante démarre après INTER_QUESTION_DELAY_MS.
+   */
   startedAt: string;
   deadlineAt: string;
 }
@@ -91,9 +94,20 @@ export interface CreateSessionRequest {
   mode: GameMode;
 }
 
-export interface CreateSessionResponse {
+/** Toutes les réponses de partie portent l'heure serveur pour que le client cale son chrono. */
+export interface ServerClock {
+  serverNow: string;
+}
+
+export interface CreateSessionResponse extends ServerClock {
   session: SessionStateDTO;
   question: PublicQuestion;
+}
+
+/** GET /sessions/:id — reprise après rechargement. */
+export interface SessionDetailResponse extends ServerClock {
+  session: SessionStateDTO;
+  question: PublicQuestion | null;
 }
 
 export interface ShotRequest {
@@ -110,15 +124,21 @@ export interface QuestionReveal {
 
 export interface BonusDrop {
   type: BonusType;
+  /** REMOVE_WRONG : réponse retirée par le bonus. */
+  removedAnswerId?: string;
+  /** SLOW_TIME : millisecondes ajoutées ; HEAL : PV rendus. */
+  amount?: number;
 }
 
-export interface ShotResponse {
+export interface ShotResponse extends ServerClock {
   outcome: ShotOutcome;
   elapsedMs: number;
   session: SessionStateDTO;
   questionClosed: boolean;
   reveal: QuestionReveal | null;
   bonus: BonusDrop | null;
+  /** Question en cours, à jour (éliminations, échéance repoussée) si elle reste ouverte. */
+  question: PublicQuestion | null;
   /** Question suivante si la précédente est close et la partie continue. */
   nextQuestion: PublicQuestion | null;
 }
@@ -127,6 +147,15 @@ export type TimeoutResponse = ShotResponse;
 
 export interface EndSessionResponse {
   session: SessionStateDTO;
+}
+
+export interface SessionSummaryDTO {
+  session: SessionStateDTO;
+  cleared: number;
+  failed: number;
+  bestCombo: number;
+  startedAt: string;
+  endedAt: string | null;
 }
 
 // --- Classement & stats -------------------------------------------------
@@ -142,14 +171,19 @@ export interface QuestionStatDTO {
   questionId: string;
   statement: string;
   themeSlug: string;
+  kind: QuestionKind;
+  isActive: boolean;
   attempts: number;
-  successRate: number;
-  averageElapsedMs: number;
+  /** Entre 0 et 1, null sans tentative. */
+  successRate: number | null;
+  averageElapsedMs: number | null;
 }
 
 // --- Back-office --------------------------------------------------------
 
 export interface AdminAnswerInput {
+  /** Présent pour modifier une réponse existante, absent pour en créer une. */
+  id?: string;
   text: string;
   isCorrect: boolean;
 }
@@ -163,13 +197,15 @@ export interface AdminQuestionInput {
   kind: QuestionKind;
   timeLimitMs: number;
   basePoints: number;
+  isActive?: boolean;
   answers: AdminAnswerInput[];
 }
 
 /** Réservé au rôle ADMIN : seul endroit où `isCorrect` est exposé. */
-export interface AdminQuestionDTO extends AdminQuestionInput {
+export interface AdminQuestionDTO extends Omit<AdminQuestionInput, 'isActive'> {
   id: string;
   isActive: boolean;
+  themeSlug: string;
   answers: (AdminAnswerInput & { id: string })[];
 }
 
@@ -177,7 +213,7 @@ export interface AdminQuestionDTO extends AdminQuestionInput {
 
 export interface ApiError {
   error: {
-    code: 'VALIDATION' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL';
+    code: 'VALIDATION' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'RATE_LIMITED' | 'INTERNAL';
     message: string;
     details?: unknown;
   };

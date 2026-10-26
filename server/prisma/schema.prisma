@@ -163,6 +163,8 @@ model SessionQuestion {
   status        SessionQuestionStatus @default(PENDING)
   /// Identifiants des réponses dans l'ordre mélangé envoyé au client.
   answerOrder   String[]
+  /// Réponses déjà éliminées (par un tir ou par le bonus REMOVE_WRONG).
+  eliminated    String[]              @default([])
   /// Posés par le serveur à l'activation de la question.
   startedAt     DateTime?
   deadlineAt    DateTime?

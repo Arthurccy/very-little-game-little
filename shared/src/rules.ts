@@ -45,3 +45,15 @@ export function questionPoints(
 ): number {
   return Math.round(basePoints * comboMultiplier(comboBefore) * speedBonus(elapsedMs, timeLimitMs));
 }
+
+/** Délai entre la clôture d'une question et le début de la suivante (lecture de l'explication). */
+export const INTER_QUESTION_DELAY_MS = 6000;
+
+/** Probabilité qu'un tir sur une mauvaise réponse lâche un bonus. */
+export const BONUS_DROP_CHANCE = 0.15;
+/** SLOW_TIME : temps ajouté à l'échéance de la question en cours. */
+export const SLOW_TIME_BONUS_MS = 5000;
+/** HEAL : PV rendus, sans dépasser STARTING_HP. */
+export const HEAL_AMOUNT = 15;
+/** Délai avant la toute première question (compte à rebours d'entrée dans la zone 1). */
+export const FIRST_QUESTION_DELAY_MS = 3000;
