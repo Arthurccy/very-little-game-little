@@ -1,0 +1,23 @@
+# Seule la base tourne dans Docker. Le serveur et le client tournent sur l'hôte
+# pour garder le rechargement à chaud.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fps-edu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fps}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fps_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-fps_edu}
+    ports:
+      - "54329:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fps} -d ${POSTGRES_DB:-fps_edu}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
