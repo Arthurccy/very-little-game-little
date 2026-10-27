@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pan ! Mauvaise réponse
-  version: 0.1.0
+  version: 0.2.0
   summary: Contrat HTTP de l'API du FPS éducatif.
   description: |
     Le serveur est l'arbitre. Le client affiche l'état renvoyé ici et n'invente ni score,
@@ -16,7 +16,9 @@ info:
     - Toutes les réponses de partie portent `serverNow`. Le client cale son chrono dessus.
     - Les identifiants sont des chaînes opaques (cuid), 1 à 64 caractères.
     - JSON partout, UTF-8. Corps limité à 32 Ko (au-delà : 413).
-    - Les propriétés inconnues d'un corps sont ignorées.
+    - Les corps de requête ont `additionalProperties: false` : une propriété inconnue est refusée (422), pas ignorée.
+    - Les réponses restent ouvertes : un champ ajouté plus tard ne casse pas le client.
+    - Les listes sont des pages `{ items, limit, offset, total }`. `limit` va de 1 à 100 (défaut 20), `offset` part de 0.
     - CORS : origine exacte du client, `credentials: true`, `Vary: Origin`.
 
     Authentification : jeton d'accès JWT (HS256, 15 min par défaut) dans
@@ -40,7 +42,7 @@ info:
 
     | Statut | Code | Cas |
     | --- | --- | --- |
-    | 400 | `VALIDATION` | corps, query ou paramètre refusé |
+    | 422 | `VALIDATION` | corps, query ou paramètre refusé, y compris une propriété inconnue |
     | 401 | `UNAUTHENTICATED` | jeton ou refresh absent, invalide ou expiré |
     | 403 | `FORBIDDEN` | rôle insuffisant, partie d'un autre joueur, origine refusée |
     | 404 | `NOT_FOUND` | ressource ou route inconnue |
@@ -82,6 +84,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+              examples:
+                ok:
+                  $ref: '#/components/examples/HealthOk'
+        '422':
+          description: Une query string est présente. Ce point d'entrée n'accepte aucun paramètre.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              examples:
+                query:
+                  $ref: '#/components/examples/UnexpectedQuery'
+        '500':
+          $ref: '#/components/responses/Internal'
 
   /auth/register:
     post:
@@ -101,7 +117,7 @@ paths:
       responses:
         '201':
           $ref: '#/components/responses/AuthCreated'
-        '400':
+        '422':
           $ref: '#/components/responses/Validation'
         '409':
           description: Email ou pseudo déjà utilisé.
@@ -141,7 +157,7 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/AuthOk'
-        '400':
+        '422':
           $ref: '#/components/responses/Validation'
         '401':
           description: Email ou mot de passe incorrect.
@@ -220,11 +236,14 @@ paths:
       tags: [Public]
       operationId: listThemes
       summary: Lister les thèmes
-      description: Triés par `order` croissant. Six thèmes dans le seed.
+      description: Triés par `order` croissant, puis paginés. Six thèmes dans le seed.
       security: []
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Thèmes disponibles.
+          description: Page de thèmes.
           headers:
             Cache-Control:
               description: '`public, max-age=300`'
@@ -234,9 +253,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Theme'
+                $ref: '#/components/schemas/ThemePage'
+              examples:
+                page:
+                  $ref: '#/components/examples/ThemePage'
+        '422':
+          $ref: '#/components/responses/Validation'
         '500':
           $ref: '#/components/responses/Internal'
 
@@ -251,10 +273,11 @@ paths:
         puis fin de partie la plus ancienne.
       security: []
       parameters:
-        - $ref: '#/components/parameters/LeaderboardLimit'
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Classement.
+          description: Page du classement. `rank` est le rang global, pas la position dans la page.
           headers:
             Cache-Control:
               description: '`no-cache`'
@@ -264,10 +287,13 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LeaderboardEntry'
-        '400':
+                $ref: '#/components/schemas/LeaderboardPage'
+              examples:
+                scores:
+                  $ref: '#/components/examples/LeaderboardPage'
+                vide:
+                  $ref: '#/components/examples/LeaderboardEmpty'
+        '422':
           $ref: '#/components/responses/Validation'
         '500':
           $ref: '#/components/responses/Internal'
@@ -297,7 +323,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateSessionResponse'
-        '400':
+              examples:
+                normale:
+                  $ref: '#/components/examples/SessionCreated'
+        '422':
           $ref: '#/components/responses/Validation'
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -332,7 +361,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionDetail'
-        '400':
+              examples:
+                enCours:
+                  $ref: '#/components/examples/SessionEnCours'
+                terminee:
+                  $ref: '#/components/examples/SessionTerminee'
+        '422':
           $ref: '#/components/responses/Validation'
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -360,7 +394,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionSummary'
-        '400':
+              examples:
+                bilan:
+                  $ref: '#/components/examples/SessionSummary'
+        '422':
           $ref: '#/components/responses/Validation'
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -409,13 +446,170 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShotResponse'
-        '400':
+              examples:
+                mauvaiseEliminee:
+                  summary: Mauvaise réponse abattue, la question continue
+                  value:
+                    serverNow: '2026-10-27T10:00:08.000Z'
+                    outcome: ELIMINATED_WRONG
+                    elapsedMs: 5000
+                    questionClosed: false
+                    reveal: null
+                    bonus: null
+                    nextQuestion: null
+                    question:
+                      id: clsq1
+                      position: 0
+                      total: 30
+                      zone: 1
+                      kind: STANDARD
+                      themeSlug: http
+                      statement: Que signifie le statut 401 ?
+                      answers:
+                        - { id: cla1, text: Non authentifié }
+                        - { id: cla2, text: Interdit }
+                        - { id: cla3, text: Introuvable }
+                      eliminatedAnswerIds: [cla2]
+                      timeLimitMs: 20000
+                      startedAt: '2026-10-27T10:00:03.000Z'
+                      deadlineAt: '2026-10-27T10:00:23.000Z'
+                    session:
+                      id: clsession
+                      mode: NORMAL
+                      status: IN_PROGRESS
+                      score: 0
+                      hp: 100
+                      combo: 0
+                      multiplier: 1
+                      currentIndex: 0
+                      total: 30
+                      paused: false
+                      pauseEndsAt: null
+                      pausesLeft: 3
+                bonus:
+                  summary: Bonus de soin sur une mauvaise réponse
+                  value:
+                    serverNow: '2026-10-27T10:00:08.000Z'
+                    outcome: ELIMINATED_WRONG
+                    elapsedMs: 5000
+                    questionClosed: false
+                    reveal: null
+                    bonus: { type: HEAL, amount: 15 }
+                    nextQuestion: null
+                    question:
+                      id: clsq1
+                      position: 0
+                      total: 30
+                      zone: 1
+                      kind: STANDARD
+                      themeSlug: http
+                      statement: Que signifie le statut 401 ?
+                      answers:
+                        - { id: cla1, text: Non authentifié }
+                        - { id: cla2, text: Interdit }
+                        - { id: cla3, text: Introuvable }
+                      eliminatedAnswerIds: [cla2]
+                      timeLimitMs: 20000
+                      startedAt: '2026-10-27T10:00:03.000Z'
+                      deadlineAt: '2026-10-27T10:00:23.000Z'
+                    session:
+                      id: clsession
+                      mode: NORMAL
+                      status: IN_PROGRESS
+                      score: 0
+                      hp: 100
+                      combo: 0
+                      multiplier: 1
+                      currentIndex: 0
+                      total: 30
+                      paused: false
+                      pauseEndsAt: null
+                      pausesLeft: 3
+                reussite:
+                  summary: Dernière mauvaise réponse, question réussie
+                  value:
+                    serverNow: '2026-10-27T10:00:12.000Z'
+                    outcome: ELIMINATED_WRONG
+                    elapsedMs: 9000
+                    questionClosed: true
+                    reveal:
+                      correctAnswerId: cla1
+                      explanation: 401 signifie non authentifié, 403 signifie interdit.
+                      mdnUrl: https://developer.mozilla.org/fr/docs/Web/HTTP/Reference/Status/401
+                      pointsAwarded: 140
+                    bonus: null
+                    question: null
+                    nextQuestion:
+                      id: clsq2
+                      position: 1
+                      total: 30
+                      zone: 1
+                      kind: STANDARD
+                      themeSlug: http
+                      statement: Quelle méthode HTTP est sûre ?
+                      answers:
+                        - { id: clb1, text: GET }
+                        - { id: clb2, text: POST }
+                        - { id: clb3, text: PATCH }
+                      eliminatedAnswerIds: []
+                      timeLimitMs: 20000
+                      startedAt: '2026-10-27T10:00:18.000Z'
+                      deadlineAt: '2026-10-27T10:00:38.000Z'
+                    session:
+                      id: clsession
+                      mode: NORMAL
+                      status: IN_PROGRESS
+                      score: 140
+                      hp: 100
+                      combo: 1
+                      multiplier: 1
+                      currentIndex: 1
+                      total: 30
+                      paused: false
+                      pauseEndsAt: null
+                      pausesLeft: 3
+                bonneTouchee:
+                  summary: La bonne réponse est touchée, la question est ratée
+                  value:
+                    serverNow: '2026-10-27T10:00:10.000Z'
+                    outcome: HIT_CORRECT
+                    elapsedMs: 7000
+                    questionClosed: true
+                    reveal:
+                      correctAnswerId: cla1
+                      explanation: 401 signifie non authentifié, 403 signifie interdit.
+                      mdnUrl: https://developer.mozilla.org/fr/docs/Web/HTTP/Reference/Status/401
+                      pointsAwarded: 0
+                    bonus: null
+                    question: null
+                    nextQuestion: null
+                    session:
+                      id: clsession
+                      mode: NORMAL
+                      status: LOST
+                      score: 0
+                      hp: 0
+                      combo: 0
+                      multiplier: 1
+                      currentIndex: 0
+                      total: 30
+                      paused: false
+                      pauseEndsAt: null
+                      pausesLeft: 3
+        '422':
           description: |
-            Corps invalide, réponse hors de la question active, ou réponse déjà éliminée.
+            Corps invalide, propriété inconnue, réponse hors de la question active,
+            ou réponse déjà éliminée.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+              examples:
+                inconnue:
+                  $ref: '#/components/examples/UnknownField'
+                dejaEliminee:
+                  value:
+                    error: { code: VALIDATION, message: Réponse déjà éliminée }
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -523,6 +717,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionDetail'
+              examples:
+                pause:
+                  $ref: '#/components/examples/SessionEnPause'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -559,6 +756,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionDetail'
+              examples:
+                reprise:
+                  $ref: '#/components/examples/SessionEnCours'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -594,6 +794,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EndSessionResponse'
+              examples:
+                abandon:
+                  $ref: '#/components/examples/SessionAbandoned'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -616,7 +819,7 @@ paths:
       tags: [Administration]
       operationId: listAdminQuestions
       summary: Lister les questions
-      description: Inclut les questions inactives par défaut.
+      description: Inclut les questions inactives par défaut. La liste est paginée.
       parameters:
         - name: themeId
           in: query
@@ -636,6 +839,8 @@ paths:
             type: string
             enum: ['true', 'false']
             default: 'true'
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
           description: Questions correspondant au filtre.
@@ -645,10 +850,11 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AdminQuestion'
-        '400':
+                $ref: '#/components/schemas/AdminQuestionPage'
+              examples:
+                page:
+                  $ref: '#/components/examples/AdminQuestionPage'
+        '422':
           $ref: '#/components/responses/Validation'
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -679,7 +885,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminQuestion'
-        '400':
+              examples:
+                question:
+                  $ref: '#/components/examples/AdminQuestion'
+        '422':
           description: Corps invalide, thème inconnu, ou règle de réponses non respectée.
           content:
             application/json:
@@ -711,7 +920,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminQuestion'
-        '400':
+              examples:
+                question:
+                  $ref: '#/components/examples/AdminQuestion'
+        '422':
           $ref: '#/components/responses/Validation'
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -744,7 +956,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminQuestion'
-        '400':
+              examples:
+                question:
+                  $ref: '#/components/examples/AdminQuestion'
+        '422':
           description: Corps invalide, thème inconnu, ou identifiant de réponse étranger.
           content:
             application/json:
@@ -773,7 +988,7 @@ paths:
           headers:
             Cache-Control:
               $ref: '#/components/headers/CacheControlNoStore'
-        '400':
+        '422':
           $ref: '#/components/responses/Validation'
         '401':
           $ref: '#/components/responses/Unauthenticated'
@@ -792,19 +1007,27 @@ paths:
       description: |
         Une ligne par question, y compris celles sans tentative. `successRate` et
         `averageElapsedMs` sont `null` sans tentative close. Le temps moyen est mesuré
-        entre `startedAt` et `resolvedAt` côté serveur.
+        entre `startedAt` et `resolvedAt` côté serveur. La liste est paginée.
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
       responses:
         '200':
-          description: Statistiques.
+          description: Page de statistiques.
           headers:
             Cache-Control:
               $ref: '#/components/headers/CacheControlNoStore'
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/QuestionStat'
+                $ref: '#/components/schemas/QuestionStatPage'
+              examples:
+                page:
+                  $ref: '#/components/examples/QuestionStatPage'
+                sansTentative:
+                  $ref: '#/components/examples/QuestionStatEmpty'
+        '422':
+          $ref: '#/components/responses/Validation'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -844,16 +1067,25 @@ components:
       description: Identifiant de la question (catalogue, pas la question de partie).
       schema:
         $ref: '#/components/schemas/Id'
-    LeaderboardLimit:
+    PageLimit:
       name: limit
       in: query
       required: false
-      description: Nombre d'entrées, de 1 à 100. Défaut 20.
+      description: Taille de la page, de 1 à 100. Défaut 20.
       schema:
         type: integer
         minimum: 1
         maximum: 100
         default: 20
+    PageOffset:
+      name: offset
+      in: query
+      required: false
+      description: Nombre d'éléments à sauter. Défaut 0.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
 
   headers:
     CacheControlNoStore:
@@ -880,6 +1112,9 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AuthResponse'
+          examples:
+            joueur:
+              $ref: '#/components/examples/AuthPlayer'
     AuthOk:
       description: Session ouverte ou renouvelée. Le cookie refresh est tourné.
       headers:
@@ -891,19 +1126,31 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AuthResponse'
+          examples:
+            joueur:
+              $ref: '#/components/examples/AuthPlayer'
+            admin:
+              $ref: '#/components/examples/AuthAdmin'
     Validation:
-      description: Corps, query ou paramètre refusé. `details` liste les écarts.
+      description: |
+        Corps, query ou paramètre refusé (422). Une propriété inconnue est une erreur,
+        elle n'est pas ignorée. `details` liste les écarts.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
-          example:
-            error:
-              code: VALIDATION
-              message: Requête invalide
-              details:
-                - path: email
-                  message: Email invalide
+          examples:
+            champ:
+              summary: Champ hors bornes ou mal typé
+              value:
+                error:
+                  code: VALIDATION
+                  message: Requête invalide
+                  details:
+                    - path: email
+                      message: Email invalide
+            inconnue:
+              $ref: '#/components/examples/UnknownField'
     Unauthenticated:
       description: Jeton d'accès absent, mal formé ou expiré.
       content:
@@ -977,6 +1224,280 @@ components:
           example:
             error: { code: INTERNAL, message: Erreur interne }
 
+  examples:
+    HealthOk:
+      summary: Processus joignable
+      value: { status: ok }
+    UnexpectedQuery:
+      summary: Paramètre de query refusé
+      value:
+        error:
+          code: VALIDATION
+          message: Requête invalide
+          details:
+            - { path: query, message: Aucun paramètre accepté }
+    UnknownField:
+      summary: Propriété inconnue dans le corps
+      value:
+        error:
+          code: VALIDATION
+          message: Requête invalide
+          details:
+            - { path: '', message: 'Propriété inconnue « foo »' }
+    AuthPlayer:
+      summary: Session joueur
+      value:
+        accessToken: access-token-exemple
+        user: { id: cluser, pseudo: neo, role: PLAYER }
+    AuthAdmin:
+      summary: Session administrateur
+      value:
+        accessToken: access-token-admin-exemple
+        user: { id: cladmin, pseudo: ada, role: ADMIN }
+    ThemePage:
+      summary: Première page des thèmes
+      value:
+        limit: 20
+        offset: 0
+        total: 6
+        items:
+          - { id: cltheme, slug: http, name: HTTP, scenery: tunnel, order: 1, intro: 'Statuts, méthodes et en-têtes.' }
+    LeaderboardPage:
+      summary: Classement avec une entrée
+      value:
+        limit: 20
+        offset: 0
+        total: 1
+        items:
+          - { rank: 1, pseudo: neo, score: 2400, endedAt: '2026-10-27T10:12:00.000Z' }
+    LeaderboardEmpty:
+      summary: Aucune partie classée
+      value: { limit: 20, offset: 0, total: 0, items: [] }
+    SessionCreated:
+      summary: Partie normale, première question dans 3 secondes
+      value:
+        serverNow: '2026-10-27T10:00:00.000Z'
+        session:
+          id: clsession
+          mode: NORMAL
+          status: IN_PROGRESS
+          score: 0
+          hp: 100
+          combo: 0
+          multiplier: 1
+          currentIndex: 0
+          total: 30
+          paused: false
+          pauseEndsAt: null
+          pausesLeft: 3
+        question:
+          id: clsq1
+          position: 0
+          total: 30
+          zone: 1
+          kind: STANDARD
+          themeSlug: http
+          statement: Que signifie le statut 401 ?
+          answers:
+            - { id: cla1, text: Non authentifié }
+            - { id: cla2, text: Interdit }
+            - { id: cla3, text: Introuvable }
+          eliminatedAnswerIds: []
+          timeLimitMs: 20000
+          startedAt: '2026-10-27T10:00:03.000Z'
+          deadlineAt: '2026-10-27T10:00:23.000Z'
+    SessionEnCours:
+      summary: Reprise, question ouverte
+      value:
+        serverNow: '2026-10-27T10:00:08.000Z'
+        session:
+          id: clsession
+          mode: NORMAL
+          status: IN_PROGRESS
+          score: 140
+          hp: 100
+          combo: 1
+          multiplier: 1.25
+          currentIndex: 1
+          total: 30
+          paused: false
+          pauseEndsAt: null
+          pausesLeft: 3
+        question:
+          id: clsq2
+          position: 1
+          total: 30
+          zone: 1
+          kind: STANDARD
+          themeSlug: http
+          statement: Quelle méthode HTTP est sûre ?
+          answers:
+            - { id: clb1, text: GET }
+            - { id: clb2, text: POST }
+            - { id: clb3, text: PATCH }
+          eliminatedAnswerIds: []
+          timeLimitMs: 20000
+          startedAt: '2026-10-27T10:00:18.000Z'
+          deadlineAt: '2026-10-27T10:00:38.000Z'
+    SessionTerminee:
+      summary: Partie gagnée, plus de question active
+      value:
+        serverNow: '2026-10-27T10:12:00.000Z'
+        session:
+          id: clsession
+          mode: NORMAL
+          status: WON
+          score: 2400
+          hp: 55
+          combo: 4
+          multiplier: 2
+          currentIndex: 29
+          total: 30
+          paused: false
+          pauseEndsAt: null
+          pausesLeft: 1
+        question: null
+    SessionEnPause:
+      summary: Chrono gelé, question masquée côté client
+      value:
+        serverNow: '2026-10-27T10:01:00.000Z'
+        session:
+          id: clsession
+          mode: NORMAL
+          status: IN_PROGRESS
+          score: 140
+          hp: 100
+          combo: 1
+          multiplier: 1.25
+          currentIndex: 1
+          total: 30
+          paused: true
+          pauseEndsAt: '2026-10-27T10:01:30.000Z'
+          pausesLeft: 2
+        question:
+          id: clsq2
+          position: 1
+          total: 30
+          zone: 1
+          kind: STANDARD
+          themeSlug: http
+          statement: Quelle méthode HTTP est sûre ?
+          answers:
+            - { id: clb1, text: GET }
+            - { id: clb2, text: POST }
+            - { id: clb3, text: PATCH }
+          eliminatedAnswerIds: []
+          timeLimitMs: 20000
+          startedAt: '2026-10-27T10:00:18.000Z'
+          deadlineAt: '2026-10-27T10:00:38.000Z'
+    SessionSummary:
+      summary: Bilan après une victoire
+      value:
+        cleared: 28
+        failed: 2
+        bestCombo: 6
+        startedAt: '2026-10-27T10:00:00.000Z'
+        endedAt: '2026-10-27T10:12:00.000Z'
+        session:
+          id: clsession
+          mode: NORMAL
+          status: WON
+          score: 2400
+          hp: 55
+          combo: 4
+          multiplier: 2
+          currentIndex: 29
+          total: 30
+          paused: false
+          pauseEndsAt: null
+          pausesLeft: 1
+    SessionAbandoned:
+      summary: Abandon, score hors classement
+      value:
+        session:
+          id: clsession
+          mode: NORMAL
+          status: ABANDONED
+          score: 140
+          hp: 100
+          combo: 1
+          multiplier: 1.25
+          currentIndex: 1
+          total: 30
+          paused: false
+          pauseEndsAt: null
+          pausesLeft: 3
+    AdminQuestion:
+      summary: Question du catalogue, avec la bonne réponse
+      value:
+        id: clq1
+        themeId: cltheme
+        themeSlug: http
+        statement: Que signifie le statut 401 ?
+        explanation: 401 signifie non authentifié, 403 signifie interdit.
+        mdnUrl: https://developer.mozilla.org/fr/docs/Web/HTTP/Reference/Status/401
+        difficulty: 1
+        kind: STANDARD
+        timeLimitMs: 20000
+        basePoints: 100
+        isActive: true
+        answers:
+          - { id: cla1, text: Non authentifié, isCorrect: true }
+          - { id: cla2, text: Interdit, isCorrect: false }
+          - { id: cla3, text: Introuvable, isCorrect: false }
+    AdminQuestionPage:
+      summary: Page du back-office
+      value:
+        limit: 20
+        offset: 0
+        total: 1
+        items:
+          - id: clq1
+            themeId: cltheme
+            themeSlug: http
+            statement: Que signifie le statut 401 ?
+            explanation: 401 signifie non authentifié, 403 signifie interdit.
+            mdnUrl: https://developer.mozilla.org/fr/docs/Web/HTTP/Reference/Status/401
+            difficulty: 1
+            kind: STANDARD
+            timeLimitMs: 20000
+            basePoints: 100
+            isActive: true
+            answers:
+              - { id: cla1, text: Non authentifié, isCorrect: true }
+              - { id: cla2, text: Interdit, isCorrect: false }
+              - { id: cla3, text: Introuvable, isCorrect: false }
+    QuestionStatPage:
+      summary: Une question déjà jouée
+      value:
+        limit: 20
+        offset: 0
+        total: 1
+        items:
+          - questionId: clq1
+            statement: Que signifie le statut 401 ?
+            themeSlug: http
+            kind: STANDARD
+            isActive: true
+            attempts: 10
+            successRate: 0.7
+            averageElapsedMs: 8400
+    QuestionStatEmpty:
+      summary: Question jamais tentée
+      value:
+        limit: 20
+        offset: 0
+        total: 1
+        items:
+          - questionId: clq9
+            statement: Que signifie le statut 304 ?
+            themeSlug: cache
+            kind: STANDARD
+            isActive: true
+            attempts: 0
+            successRate: null
+            averageElapsedMs: null
+
   schemas:
     Id:
       type: string
@@ -987,7 +1508,6 @@ components:
 
     Health:
       type: object
-      additionalProperties: false
       required: [status]
       properties:
         status:
@@ -996,12 +1516,10 @@ components:
 
     ApiError:
       type: object
-      additionalProperties: false
       required: [error]
       properties:
         error:
           type: object
-          additionalProperties: false
           required: [code, message]
           properties:
             code:
@@ -1021,7 +1539,6 @@ components:
               type: array
               items:
                 type: object
-                additionalProperties: false
                 required: [path, message]
                 properties:
                   path:
@@ -1057,7 +1574,6 @@ components:
 
     PublicUser:
       type: object
-      additionalProperties: false
       required: [id, pseudo, role]
       properties:
         id:
@@ -1102,7 +1618,6 @@ components:
 
     AuthResponse:
       type: object
-      additionalProperties: false
       required: [accessToken, user]
       properties:
         accessToken:
@@ -1113,7 +1628,6 @@ components:
 
     Theme:
       type: object
-      additionalProperties: false
       required: [id, slug, name, scenery, order, intro]
       properties:
         id:
@@ -1136,7 +1650,6 @@ components:
 
     PublicAnswer:
       type: object
-      additionalProperties: false
       required: [id, text]
       description: Cible affichée. Pas de booléen de correction.
       properties:
@@ -1147,7 +1660,6 @@ components:
 
     PublicQuestion:
       type: object
-      additionalProperties: false
       description: |
         Question de partie (`id` est celui de la `SessionQuestion`, pas du catalogue).
         `startedAt` peut être dans le futur.
@@ -1209,7 +1721,6 @@ components:
 
     SessionState:
       type: object
-      additionalProperties: false
       required:
         - id
         - mode
@@ -1275,7 +1786,6 @@ components:
 
     CreateSessionResponse:
       type: object
-      additionalProperties: false
       required: [serverNow, session, question]
       properties:
         serverNow:
@@ -1287,7 +1797,6 @@ components:
 
     SessionDetail:
       type: object
-      additionalProperties: false
       required: [serverNow, session, question]
       properties:
         serverNow:
@@ -1302,7 +1811,6 @@ components:
 
     QuestionReveal:
       type: object
-      additionalProperties: false
       required: [correctAnswerId, explanation, mdnUrl, pointsAwarded]
       properties:
         correctAnswerId:
@@ -1319,7 +1827,6 @@ components:
 
     BonusDrop:
       type: object
-      additionalProperties: false
       required: [type]
       properties:
         type:
@@ -1346,7 +1853,6 @@ components:
 
     ShotResponse:
       type: object
-      additionalProperties: false
       required:
         - serverNow
         - outcome
@@ -1392,7 +1898,6 @@ components:
 
     EndSessionResponse:
       type: object
-      additionalProperties: false
       required: [session]
       properties:
         session:
@@ -1400,7 +1905,6 @@ components:
 
     SessionSummary:
       type: object
-      additionalProperties: false
       required: [session, cleared, failed, bestCombo, startedAt, endedAt]
       properties:
         session:
@@ -1423,7 +1927,6 @@ components:
 
     LeaderboardEntry:
       type: object
-      additionalProperties: false
       required: [rank, pseudo, score, endedAt]
       properties:
         rank:
@@ -1440,7 +1943,6 @@ components:
 
     QuestionStat:
       type: object
-      additionalProperties: false
       required:
         - questionId
         - statement
@@ -1473,6 +1975,66 @@ components:
           type: [number, 'null']
           minimum: 0
           description: '`null` sans tentative close.'
+
+    PageMeta:
+      type: object
+      required: [limit, offset, total]
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+          description: Nombre d'éléments qui correspondent au filtre, avant pagination.
+
+    ThemePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Theme'
+
+    LeaderboardPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/LeaderboardEntry'
+
+    QuestionStatPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/QuestionStat'
+
+    AdminAnswer:
+      type: object
+      required: [id, text, isCorrect]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        text:
+          type: string
+        isCorrect:
+          type: boolean
 
     AdminAnswerInput:
       type: object
@@ -1543,7 +2105,6 @@ components:
 
     AdminQuestion:
       type: object
-      additionalProperties: false
       description: Seule ressource qui expose `isCorrect`. Réservée au rôle `ADMIN`.
       required:
         - id
@@ -1586,9 +2147,17 @@ components:
         answers:
           type: array
           items:
-            allOf:
-              - $ref: '#/components/schemas/AdminAnswerInput'
-              - type: object
-                required: [id]
+            $ref: '#/components/schemas/AdminAnswer'
+
+    AdminQuestionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AdminQuestion'
 security:
   - bearerAuth: []
