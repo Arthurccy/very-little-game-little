@@ -31,7 +31,7 @@ export function AuthScreen() {
 
   return (
     <main className="panel panel--narrow">
-      <h1 className="title">FPS éducatif</h1>
+      <h1 className="title">Pan ! Mauvaise réponse</h1>
       <p className="tagline">Élimine les mauvaises réponses. Épargne la bonne.</p>
 
       <div className="tabs" role="tablist">

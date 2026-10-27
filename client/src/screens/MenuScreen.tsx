@@ -24,7 +24,7 @@ export function MenuScreen({ themes, starting, error, onStart, onLeaderboard, on
     <main className="panel">
       <header className="panel__header">
         <div>
-          <h1 className="title">FPS éducatif</h1>
+          <h1 className="title">Pan ! Mauvaise réponse</h1>
           <p className="tagline">Salut {user?.pseudo} ! Élimine les mauvaises réponses, épargne la bonne.</p>
         </div>
         <button type="button" className="btn btn--ghost" onClick={() => void logout()}>
