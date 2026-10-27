@@ -1,4 +1,6 @@
-# very-little-game-little — FPS éducatif
+# Pan ! Mauvaise réponse
+
+> FPS éducatif dans le navigateur (dépôt `very-little-game-little`).
 
 Mini-FPS dans le navigateur pour réviser HTTP, REST, CORS, l’authentification, les failles web et le cache :
 chaque cible porte une réponse, **abats les mauvaises, épargne la bonne**.

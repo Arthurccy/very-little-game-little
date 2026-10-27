@@ -1,4 +1,4 @@
-# FPS éducatif — document de conception
+# Pan ! Mauvaise réponse — document de conception
 
 Mini-FPS dans le navigateur pour réviser HTTP, REST, CORS, l’authentification, les failles web et le cache.
 À chaque question, des cibles portent des réponses : le joueur abat les **mauvaises** et épargne la **bonne**.
