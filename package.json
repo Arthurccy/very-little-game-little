@@ -1,0 +1,35 @@
+{
+  "name": "very-little-game-little",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client",
+    "e2e"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev:server": "npm run dev -w server",
+    "play": "npm run build -w client && concurrently -n api,web -c blue,green \"npm run start -w server\" \"npm run preview -w client\"",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w server --",
+    "db:seed": "npm run db:seed -w server --",
+    "db:reset": "npm run db:reset -w server --",
+    "dev:client": "npm run dev -w client",
+    "build:client": "npm run build -w client",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test -w server",
+    "test:e2e": "npm test -w e2e",
+    "format": "prettier --write \"{client,server,shared,e2e}/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"{client,server,shared,e2e}/**/*.{ts,tsx,css}\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "prettier": "^3.9.10"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "@fps/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../.env -- tsx watch src/index.ts",
+    "start": "dotenv -e ../.env -- tsx src/index.ts",
+    "test": "dotenv -e ../.env -- vitest run",
+    "test:watch": "dotenv -e ../.env -- vitest",
+    "prisma": "dotenv -e ../.env -- prisma",
+    "db:generate": "prisma generate",
+    "db:migrate": "dotenv -e ../.env -- prisma migrate dev",
+    "db:deploy": "dotenv -e ../.env -- prisma migrate deploy",
+    "db:seed": "dotenv -e ../.env -- prisma db seed",
+    "db:reset": "dotenv -e ../.env -- prisma migrate reset --force",
+    "db:studio": "dotenv -e ../.env -- prisma studio",
+    "typecheck": "tsc -p tsconfig.json",
+    "postinstall": "prisma generate",
+    "e2e:prepare": "dotenv -e ../.env -- tsx prisma/prepare-e2e.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@fps/shared": "0.1.0",
+    "@prisma/client": "6.19.3",
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "jose": "^6.2.13",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/supertest": "^7.2.1",
+    "dotenv-cli": "^11.0.0",
+    "prisma": "6.19.3",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

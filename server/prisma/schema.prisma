@@ -1,0 +1,203 @@
+// Schéma de l'étape 1. Voir docs/conception.md, section « Modèle de données ».
+// Principes : état de partie autoritaire côté serveur, série de questions tirée
+// d'avance et persistée, journal des tirs avec un temps mesuré par le serveur.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  ADMIN
+}
+
+enum QuestionKind {
+  STANDARD
+  BOSS
+}
+
+enum GameMode {
+  NORMAL
+  TRAINING
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  WON
+  LOST
+  ABANDONED
+}
+
+enum SessionQuestionStatus {
+  PENDING
+  ACTIVE
+  CLEARED
+  FAILED
+}
+
+enum ShotOutcome {
+  ELIMINATED_WRONG
+  HIT_CORRECT
+  TIMEOUT
+}
+
+enum BonusType {
+  SLOW_TIME
+  REMOVE_WRONG
+  HEAL
+}
+
+model User {
+  id           String   @id @default(cuid())
+  pseudo       String   @unique @db.VarChar(32)
+  email        String   @unique @db.VarChar(254)
+  passwordHash String
+  role         Role     @default(PLAYER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions      GameSession[]
+  refreshTokens RefreshToken[]
+}
+
+/// Refresh tokens émis (stockés hachés) pour permettre la rotation et le logout.
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  /// Jeton qui a remplacé celui-ci lors d'une rotation (détection de rejeu).
+  replacedBy String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Theme {
+  id      String @id @default(cuid())
+  slug    String @unique @db.VarChar(64)
+  name    String @db.VarChar(120)
+  /// Identifiant du décor 3D de la zone (ex. "datacenter").
+  scenery String @db.VarChar(64)
+  order   Int    @unique
+  intro   String
+
+  questions Question[]
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  themeId     String
+  /// Clé stable des questions issues du seed (null pour celles créées au back-office).
+  seedKey     String?      @unique @db.VarChar(80)
+  statement   String
+  explanation String
+  mdnUrl      String?
+  /// 1 (facile) à 3 (difficile).
+  difficulty  Int          @default(1) @db.SmallInt
+  kind        QuestionKind @default(STANDARD)
+  timeLimitMs Int          @default(20000)
+  basePoints  Int          @default(100)
+  /// Désactivation douce : une question jouée reste référencée par l'historique.
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  theme            Theme             @relation(fields: [themeId], references: [id], onDelete: Restrict)
+  answers          Answer[]
+  sessionQuestions SessionQuestion[]
+
+  @@index([themeId, kind, isActive])
+}
+
+/// Pas de colonne d'ordre : l'ordre d'affichage est tiré par partie (SessionQuestion.answerOrder).
+model Answer {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  logs     AnswerLog[]
+
+  @@index([questionId])
+}
+
+model GameSession {
+  id           String        @id @default(cuid())
+  userId       String
+  mode         GameMode      @default(NORMAL)
+  status       SessionStatus @default(IN_PROGRESS)
+  score        Int           @default(0)
+  hp           Int           @default(100)
+  combo        Int           @default(0)
+  multiplier   Float         @default(1)
+  /// Position (0-based) de la question en cours dans la série.
+  currentIndex Int           @default(0)
+  /// Début de la pause en cours (null si la partie n'est pas en pause).
+  pausedAt     DateTime?
+  /// Nombre de pauses déjà prises (limité, voir MAX_PAUSES).
+  pausesUsed   Int           @default(0)
+  startedAt    DateTime      @default(now())
+  endedAt      DateTime?
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions SessionQuestion[]
+
+  @@index([userId, startedAt])
+  @@index([mode, status, score])
+}
+
+model SessionQuestion {
+  id            String                @id @default(cuid())
+  sessionId     String
+  questionId    String
+  /// Position (0-based) dans la série tirée à la création de partie.
+  position      Int
+  /// Zone 1 à 6 = thèmes dans l'ordre, 7 = boss.
+  zone          Int
+  status        SessionQuestionStatus @default(PENDING)
+  /// Identifiants des réponses dans l'ordre mélangé envoyé au client.
+  answerOrder   String[]
+  /// Réponses déjà éliminées (par un tir ou par le bonus REMOVE_WRONG).
+  eliminated    String[]              @default([])
+  /// Posés par le serveur à l'activation de la question.
+  startedAt     DateTime?
+  deadlineAt    DateTime?
+  resolvedAt    DateTime?
+  pointsAwarded Int                   @default(0)
+
+  session  GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  logs     AnswerLog[]
+
+  @@unique([sessionId, position])
+  @@index([questionId])
+}
+
+model AnswerLog {
+  id                String      @id @default(cuid())
+  sessionQuestionId String
+  /// Null pour un TIMEOUT.
+  answerId          String?
+  outcome           ShotOutcome
+  /// Temps écoulé depuis SessionQuestion.startedAt, mesuré par le serveur.
+  elapsedMs         Int
+  /// Bonus éventuellement lâché par ce tir (décidé par le serveur).
+  bonus             BonusType?
+  createdAt         DateTime    @default(now())
+
+  sessionQuestion SessionQuestion @relation(fields: [sessionQuestionId], references: [id], onDelete: Cascade)
+  answer          Answer?         @relation(fields: [answerId], references: [id], onDelete: SetNull)
+
+  @@index([sessionQuestionId])
+  @@index([answerId])
+}

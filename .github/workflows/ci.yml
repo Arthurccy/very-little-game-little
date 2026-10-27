@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Les tests créent eux-mêmes leurs bases fps_edu_test et fps_edu_e2e sur ce serveur.
+  DATABASE_URL: postgresql://fps:fps_ci_password@localhost:5432/fps_edu?schema=public
+  JWT_ACCESS_SECRET: ci-access-secret-with-at-least-32-characters
+
+jobs:
+  checks:
+    name: Format, types, tests API, build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fps
+          POSTGRES_PASSWORD: fps_ci_password
+          POSTGRES_DB: fps_edu
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fps -d fps_edu"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build:client
+
+  e2e:
+    name: Tests de bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fps
+          POSTGRES_PASSWORD: fps_ci_password
+          POSTGRES_DB: fps_edu
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fps -d fps_edu"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
