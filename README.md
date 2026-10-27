@@ -14,6 +14,20 @@ chaque cible porte une réponse, **abats les mauvaises, épargne la bonne**.
 
 Toute la conception (règles, modèle, contrat d’API) est dans [`docs/conception.md`](docs/conception.md).
 
+## Équipe
+
+Projet de groupe (Ynov, année 2, front / back).
+
+| Prénom   | Rôle  |
+| -------- | ----- |
+| Arthur   | Front |
+| Victor   | Front |
+| Clément  | Back  |
+| Mohamed  | Back  |
+
+Le front porte la scène 3D, le HUD et les écrans (menus, fin de partie, classement, back-office). Le back porte l’API,
+l’authentification, les règles de partie et la base de données.
+
 ## Prérequis
 
 - Node.js ≥ 20.19 et npm ≥ 10
