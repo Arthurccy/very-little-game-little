@@ -1,0 +1,9 @@
+{
+  "id": "pan-mauvaise-reponse",
+  "name": "Pan ! Mauvaise réponse",
+  "team": "arthur-victor-clement-mohamed",
+  "theme": "http",
+  "url": "http://localhost:43124",
+  "levels": 7,
+  "contractVersion": "1.0"
+}
