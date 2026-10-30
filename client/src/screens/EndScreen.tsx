@@ -18,9 +18,10 @@ const TITLES: Record<SessionStateDTO['status'], string> = {
 
 export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
   const [summary, setSummary] = useState<SessionSummaryDTO | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    gameApi.summary(session.id).then(setSummary, () => setSummary(null));
+    gameApi.summary(session.id).then(setSummary, (e: Error) => setError(`Bilan indisponible : ${e.message}`));
   }, [session.id]);
 
   const final = summary?.session ?? session;
@@ -33,21 +34,26 @@ export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
       <dl className="stats">
         <div>
           <dt>Questions réussies</dt>
-          <dd>{summary ? `${summary.cleared} / ${final.total}` : '…'}</dd>
+          <dd>{summary ? `${summary.cleared} / ${final.total}` : error ? '—' : '…'}</dd>
         </div>
         <div>
           <dt>Questions ratées</dt>
-          <dd>{summary?.failed ?? '…'}</dd>
+          <dd>{summary?.failed ?? (error ? '—' : '…')}</dd>
         </div>
         <div>
           <dt>Meilleur combo</dt>
-          <dd>{summary?.bestCombo ?? '…'}</dd>
+          <dd>{summary?.bestCombo ?? (error ? '—' : '…')}</dd>
         </div>
         <div>
           <dt>PV restants</dt>
           <dd>{final.hp}</dd>
         </div>
       </dl>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <p className="muted">
         {final.mode === 'TRAINING'
           ? 'Partie d’entraînement : hors classement.'

@@ -668,3 +668,56 @@ fieldset {
 .pause-status--off {
   color: var(--danger);
 }
+
+/* --- Mode maquette (MSW) --------------------------------------------------- */
+
+.mock-pill,
+.mock-panel {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1000;
+}
+.mock-pill {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #11161f;
+  background: #fbbf24;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.mock-panel {
+  width: min(24rem, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: var(--panel);
+  border: 2px solid #fbbf24;
+  border-radius: 12px;
+  padding: 1rem;
+  font-size: 0.9rem;
+  display: grid;
+  gap: 0.6rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.mock-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mock-panel p {
+  margin: 0;
+}
+.mock-panel fieldset {
+  display: grid;
+  gap: 0.4rem;
+}
+.mock-panel label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
