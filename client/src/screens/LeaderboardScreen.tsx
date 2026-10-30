@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { LeaderboardEntry } from '@fps/shared';
+import type { LeaderboardEntry } from '../api/types';
 import { gameApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 

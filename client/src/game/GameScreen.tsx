@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BOSS_QUESTION_COUNT,
-  BOSS_ZONE,
-  type CreateSessionResponse,
-  type SessionStateDTO,
-  type ThemeDTO,
-} from '@fps/shared';
+import { BOSS_QUESTION_COUNT, BOSS_ZONE } from '@fps/shared';
+import type { CreateSessionResponse, SessionState, Theme } from '../api/types';
 import { isMuted, setMuted, sfx } from './audio';
 import { music } from './music';
 import { Hud } from './hud/Hud';
@@ -16,8 +11,8 @@ import { useGame } from './useGame';
 
 interface Props {
   initial: CreateSessionResponse;
-  themes: ThemeDTO[];
-  onEnded: (session: SessionStateDTO) => void;
+  themes: Theme[];
+  onEnded: (session: SessionState) => void;
 }
 
 export function GameScreen({ initial, themes, onEnded }: Props) {

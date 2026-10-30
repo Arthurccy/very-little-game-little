@@ -1,0 +1,2539 @@
+{
+  "themes": [
+    {
+      "id": "theme-http",
+      "slug": "http",
+      "name": "Méthodes et statuts HTTP",
+      "scenery": "lobby",
+      "order": 1,
+      "intro": "Le hall d’entrée : chaque requête porte une méthode, chaque réponse un statut. Apprends à lire les deux."
+    },
+    {
+      "id": "theme-rest",
+      "slug": "rest",
+      "name": "Conception d’API REST",
+      "scenery": "warehouse",
+      "order": 2,
+      "intro": "L’entrepôt des ressources : URL, idempotence et bons codes de retour."
+    },
+    {
+      "id": "theme-cors",
+      "slug": "cors",
+      "name": "Same-origin et CORS",
+      "scenery": "border",
+      "order": 3,
+      "intro": "Le poste-frontière du navigateur : qui a le droit de lire la réponse de qui ?"
+    },
+    {
+      "id": "theme-auth",
+      "slug": "auth",
+      "name": "Authentification : JWT et cookies",
+      "scenery": "vault",
+      "order": 4,
+      "intro": "La salle des coffres : jetons, sessions et cookies, et ce que chacun protège vraiment."
+    },
+    {
+      "id": "theme-securite",
+      "slug": "securite",
+      "name": "Failles web : XSS, CSRF, injection",
+      "scenery": "lab",
+      "order": 5,
+      "intro": "Le laboratoire : les attaques classiques et les défenses qui tiennent."
+    },
+    {
+      "id": "theme-cache",
+      "slug": "cache",
+      "name": "Cache HTTP",
+      "scenery": "datacenter",
+      "order": 6,
+      "intro": "Le datacenter : Cache-Control, validateurs et requêtes conditionnelles."
+    }
+  ],
+  "questions": [
+    {
+      "id": "http-401-vs-403",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Un utilisateur connecté demande une ressource réservée aux administrateurs. Quel statut renvoyer ?",
+      "explanation": "401 signifie « identité inconnue ou invalide, authentifie-toi ». Ici l’identité est connue mais le rôle est insuffisant : c’est 403.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/403",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-401-vs-403-a0",
+          "text": "403 Forbidden",
+          "isCorrect": true
+        },
+        {
+          "id": "http-401-vs-403-a1",
+          "text": "401 Unauthorized",
+          "isCorrect": false
+        },
+        {
+          "id": "http-401-vs-403-a2",
+          "text": "404 Not Found",
+          "isCorrect": false
+        },
+        {
+          "id": "http-401-vs-403-a3",
+          "text": "400 Bad Request",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-401-header",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Quel en-tête une réponse 401 doit-elle contenir selon la spécification HTTP ?",
+      "explanation": "Une réponse 401 doit indiquer au client comment s’authentifier via WWW-Authenticate. Authorization est un en-tête de requête, pas de réponse.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/WWW-Authenticate",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-401-header-a0",
+          "text": "WWW-Authenticate",
+          "isCorrect": true
+        },
+        {
+          "id": "http-401-header-a1",
+          "text": "Authorization",
+          "isCorrect": false
+        },
+        {
+          "id": "http-401-header-a2",
+          "text": "Set-Cookie",
+          "isCorrect": false
+        },
+        {
+          "id": "http-401-header-a3",
+          "text": "Location",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-safe-methods",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Laquelle de ces méthodes est « sûre » (sans effet de bord attendu côté serveur) ?",
+      "explanation": "Les méthodes sûres sont GET, HEAD, OPTIONS et TRACE. PUT et DELETE sont idempotentes mais modifient l’état : elles ne sont pas sûres.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Safe/HTTP",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-safe-methods-a0",
+          "text": "HEAD",
+          "isCorrect": true
+        },
+        {
+          "id": "http-safe-methods-a1",
+          "text": "POST",
+          "isCorrect": false
+        },
+        {
+          "id": "http-safe-methods-a2",
+          "text": "PUT",
+          "isCorrect": false
+        },
+        {
+          "id": "http-safe-methods-a3",
+          "text": "DELETE",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-201-location",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Après la création réussie d’une ressource via POST, quel statut est le plus adapté ?",
+      "explanation": "201 indique qu’une ressource a été créée ; l’en-tête Location peut pointer vers son URL. 202 signifie que le traitement est différé.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/201",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-201-location-a0",
+          "text": "201 Created",
+          "isCorrect": true
+        },
+        {
+          "id": "http-201-location-a1",
+          "text": "200 OK",
+          "isCorrect": false
+        },
+        {
+          "id": "http-201-location-a2",
+          "text": "202 Accepted",
+          "isCorrect": false
+        },
+        {
+          "id": "http-201-location-a3",
+          "text": "204 No Content",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-204",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Que signifie une réponse 204 No Content ?",
+      "explanation": "204 est un succès sans corps, fréquent après un DELETE ou un PUT qui n’a rien à renvoyer.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/204",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-204-a0",
+          "text": "La requête a réussi et la réponse n’a volontairement pas de corps",
+          "isCorrect": true
+        },
+        {
+          "id": "http-204-a1",
+          "text": "La ressource demandée n’existe pas",
+          "isCorrect": false
+        },
+        {
+          "id": "http-204-a2",
+          "text": "Le serveur n’a pas encore traité la requête",
+          "isCorrect": false
+        },
+        {
+          "id": "http-204-a3",
+          "text": "Le client doit vider son cache",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-301-vs-308",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Quelle redirection permanente garantit que la méthode et le corps (par ex. un POST) sont conservés ?",
+      "explanation": "Avec 301 et 302, beaucoup de clients transforment historiquement un POST en GET. 308 (permanente) et 307 (temporaire) interdisent ce changement.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/308",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-301-vs-308-a0",
+          "text": "308 Permanent Redirect",
+          "isCorrect": true
+        },
+        {
+          "id": "http-301-vs-308-a1",
+          "text": "301 Moved Permanently",
+          "isCorrect": false
+        },
+        {
+          "id": "http-301-vs-308-a2",
+          "text": "302 Found",
+          "isCorrect": false
+        },
+        {
+          "id": "http-301-vs-308-a3",
+          "text": "303 See Other",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-409",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Un client tente de créer un compte avec un email déjà utilisé. Quel statut décrit le mieux ce cas ?",
+      "explanation": "409 signale un conflit avec l’état actuel de la ressource. Une erreur 5xx accuserait à tort le serveur d’une panne.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/409",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-409-a0",
+          "text": "409 Conflict",
+          "isCorrect": true
+        },
+        {
+          "id": "http-409-a1",
+          "text": "500 Internal Server Error",
+          "isCorrect": false
+        },
+        {
+          "id": "http-409-a2",
+          "text": "401 Unauthorized",
+          "isCorrect": false
+        },
+        {
+          "id": "http-409-a3",
+          "text": "405 Method Not Allowed",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-405-allow",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Le serveur renvoie 405 Method Not Allowed. Quel en-tête doit accompagner cette réponse ?",
+      "explanation": "Allow liste les méthodes acceptées par la ressource. Access-Control-Allow-Methods ne concerne que la réponse à un preflight CORS.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/405",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-405-allow-a0",
+          "text": "Allow",
+          "isCorrect": true
+        },
+        {
+          "id": "http-405-allow-a1",
+          "text": "Accept",
+          "isCorrect": false
+        },
+        {
+          "id": "http-405-allow-a2",
+          "text": "Access-Control-Allow-Methods",
+          "isCorrect": false
+        },
+        {
+          "id": "http-405-allow-a3",
+          "text": "Content-Type",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-422-vs-400",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Un JSON syntaxiquement invalide (accolade manquante) arrive sur l’API. Quel statut est le plus juste ?",
+      "explanation": "Une requête mal formée relève de 400. 415 concerne un Content-Type non supporté, 406 une négociation (Accept) impossible.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/400",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-422-vs-400-a0",
+          "text": "400 Bad Request",
+          "isCorrect": true
+        },
+        {
+          "id": "http-422-vs-400-a1",
+          "text": "415 Unsupported Media Type",
+          "isCorrect": false
+        },
+        {
+          "id": "http-422-vs-400-a2",
+          "text": "500 Internal Server Error",
+          "isCorrect": false
+        },
+        {
+          "id": "http-422-vs-400-a3",
+          "text": "406 Not Acceptable",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-429",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "Un client dépasse la limite de requêtes autorisée. Quel statut renvoyer ?",
+      "explanation": "429 est dédié à la limitation de débit, idéalement avec Retry-After. 503 signale une indisponibilité du serveur, pas un abus du client.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/429",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-429-a0",
+          "text": "429 Too Many Requests",
+          "isCorrect": true
+        },
+        {
+          "id": "http-429-a1",
+          "text": "403 Forbidden",
+          "isCorrect": false
+        },
+        {
+          "id": "http-429-a2",
+          "text": "503 Service Unavailable",
+          "isCorrect": false
+        },
+        {
+          "id": "http-429-a3",
+          "text": "408 Request Timeout",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "http-options",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "STANDARD",
+      "statement": "À quoi sert principalement la méthode OPTIONS ?",
+      "explanation": "OPTIONS décrit les options disponibles ; le navigateur s’en sert pour le preflight CORS. HEAD donne les en-têtes, PATCH modifie partiellement, CONNECT ouvre un tunnel.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Methods/OPTIONS",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "http-options-a0",
+          "text": "Découvrir les capacités de communication d’une ressource (dont le preflight CORS)",
+          "isCorrect": true
+        },
+        {
+          "id": "http-options-a1",
+          "text": "Modifier partiellement une ressource",
+          "isCorrect": false
+        },
+        {
+          "id": "http-options-a2",
+          "text": "Récupérer uniquement les en-têtes d’une ressource",
+          "isCorrect": false
+        },
+        {
+          "id": "http-options-a3",
+          "text": "Ouvrir un tunnel vers un autre serveur",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-post-not-idempotent",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Laquelle de ces méthodes n’est PAS idempotente ?",
+      "explanation": "Répéter un POST peut créer plusieurs ressources. PUT remplace par la même représentation et DELETE supprime : répétés, ils laissent le même état.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Idempotent",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-post-not-idempotent-a0",
+          "text": "POST",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-post-not-idempotent-a1",
+          "text": "PUT",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-post-not-idempotent-a2",
+          "text": "DELETE",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-post-not-idempotent-a3",
+          "text": "GET",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-patch-idempotent",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Qu’affirme la spécification HTTP à propos de PATCH ?",
+      "explanation": "Un patch « incrémente le compteur » change l’état à chaque appel. Un patch « fixe le titre à X » l’est. La spec ne garantit donc rien.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Methods/PATCH",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-patch-idempotent-a0",
+          "text": "PATCH n’est pas garanti idempotent : cela dépend du format de modification",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-patch-idempotent-a1",
+          "text": "PATCH est toujours idempotent, comme PUT",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-patch-idempotent-a2",
+          "text": "PATCH est une méthode sûre",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-patch-idempotent-a3",
+          "text": "PATCH ne peut pas avoir de corps",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-delete-twice",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "On envoie deux fois DELETE /articles/42. En quoi DELETE reste-t-il idempotent ?",
+      "explanation": "L’idempotence porte sur l’effet sur l’état, pas sur le statut de la réponse. Un 404 au second appel est compatible.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Idempotent",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-delete-twice-a0",
+          "text": "L’état du serveur est le même après un ou deux appels, même si le second répond 404",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-delete-twice-a1",
+          "text": "Parce que le second appel doit obligatoirement répondre 204",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-delete-twice-a2",
+          "text": "Parce que le serveur ignore les requêtes identiques",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-delete-twice-a3",
+          "text": "Parce que DELETE ne modifie pas l’état du serveur",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-put-semantics",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Quelle est la sémantique de PUT /users/7 avec un corps JSON ?",
+      "explanation": "PUT remplace la ressource identifiée par l’URL. Créer dans une collection avec un id généré relève de POST, fusionner des champs de PATCH.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Methods/PUT",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-put-semantics-a0",
+          "text": "Remplacer (ou créer) la représentation complète de la ressource à cette URL",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-put-semantics-a1",
+          "text": "Ajouter un nouvel utilisateur à la collection avec un id généré",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-put-semantics-a2",
+          "text": "Fusionner seulement les champs envoyés",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-put-semantics-a3",
+          "text": "Lire l’utilisateur 7 en lui passant des filtres",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-url-nouns",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Quelle URL respecte le mieux le style REST pour supprimer le commentaire 9 de l’article 3 ?",
+      "explanation": "En REST, l’URL nomme la ressource et la méthode HTTP porte l’action. Un GET ne doit jamais supprimer.",
+      "mdnUrl": null,
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-url-nouns-a0",
+          "text": "DELETE /articles/3/comments/9",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-url-nouns-a1",
+          "text": "POST /deleteComment?id=9",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-url-nouns-a2",
+          "text": "GET /articles/3/comments/9/delete",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-url-nouns-a3",
+          "text": "DELETE /comments/delete/9",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-get-side-effect",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Pourquoi ne faut-il jamais déclencher une suppression via un lien GET ?",
+      "explanation": "Crawlers, prefetch et proxies supposent que GET est sans effet. Un GET destructeur est aussi une cible CSRF triviale (une simple balise <img>).",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Safe/HTTP",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-get-side-effect-a0",
+          "text": "GET est une méthode sûre : robots, préchargements et caches peuvent l’appeler librement",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-get-side-effect-a1",
+          "text": "Parce que GET ne peut pas transporter de paramètres",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-get-side-effect-a2",
+          "text": "Parce que GET est plus lent que POST",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-get-side-effect-a3",
+          "text": "Parce que les navigateurs bloquent les GET vers une API",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-idempotency-key",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Comment rendre un POST de paiement sûr face aux réessais réseau du client ?",
+      "explanation": "Une clé d’idempotence (en-tête dédié, par ex. Idempotency-Key) permet au serveur de renvoyer le résultat déjà calculé au lieu de débiter deux fois.",
+      "mdnUrl": null,
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-idempotency-key-a0",
+          "text": "Envoyer une clé d’idempotence unique que le serveur mémorise et déduplique",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-idempotency-key-a1",
+          "text": "Remplacer POST par GET",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-idempotency-key-a2",
+          "text": "Demander au client de ne jamais réessayer",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-idempotency-key-a3",
+          "text": "Ajouter Cache-Control: no-store à la requête",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-pagination",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Une collection compte un million d’éléments. Quelle approche est la plus raisonnable pour GET /orders ?",
+      "explanation": "La pagination borne la taille des réponses. 413 concerne un corps de requête trop gros envoyé par le client, pas la réponse.",
+      "mdnUrl": null,
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-pagination-a0",
+          "text": "Paginer (par curseur ou limit/offset) et renvoyer de quoi obtenir la page suivante",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-pagination-a1",
+          "text": "Renvoyer toujours la collection complète",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-pagination-a2",
+          "text": "Répondre 413 Payload Too Large",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-pagination-a3",
+          "text": "Imposer un POST /orders/search pour toute lecture",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-stateless",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Que signifie la contrainte « sans état » (stateless) de REST ?",
+      "explanation": "Le serveur ne garde pas de contexte de conversation entre deux requêtes. Il peut évidemment persister les ressources elles-mêmes.",
+      "mdnUrl": null,
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-stateless-a0",
+          "text": "Chaque requête contient toute l’information nécessaire pour être comprise par le serveur",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-stateless-a1",
+          "text": "Le serveur ne doit stocker aucune donnée en base",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-stateless-a2",
+          "text": "Les réponses ne doivent jamais être mises en cache",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-stateless-a3",
+          "text": "Le client ne doit pas conserver d’état local",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-content-negotiation",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Quel en-tête de requête indique au serveur les formats de réponse que le client accepte ?",
+      "explanation": "Accept négocie le type de média de la réponse. Content-Type décrit le corps envoyé ; Accept-Encoding négocie la compression.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Accept",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-content-negotiation-a0",
+          "text": "Accept",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-content-negotiation-a1",
+          "text": "Content-Type",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-content-negotiation-a2",
+          "text": "Accept-Encoding",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-content-negotiation-a3",
+          "text": "Content-Language",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "rest-versioning-breaking",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "STANDARD",
+      "statement": "Laquelle de ces modifications casse la compatibilité d’une API publique ?",
+      "explanation": "Les clients existants lisent l’ancien nom et ne le trouvent plus. Les ajouts optionnels sont rétrocompatibles si les clients ignorent l’inconnu.",
+      "mdnUrl": null,
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "rest-versioning-breaking-a0",
+          "text": "Renommer un champ existant de la réponse",
+          "isCorrect": true
+        },
+        {
+          "id": "rest-versioning-breaking-a1",
+          "text": "Ajouter un champ optionnel à la réponse",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-versioning-breaking-a2",
+          "text": "Ajouter un nouvel endpoint",
+          "isCorrect": false
+        },
+        {
+          "id": "rest-versioning-breaking-a3",
+          "text": "Accepter un paramètre de requête optionnel supplémentaire",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-origin-definition",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Qu’est-ce qui définit une « origine » au sens du navigateur ?",
+      "explanation": "https://app.test:443 et http://app.test:80 sont deux origines distinctes. Le chemin n’entre pas en compte.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Origin",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-origin-definition-a0",
+          "text": "Le triplet schéma, hôte et port",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-origin-definition-a1",
+          "text": "Le nom de domaine seul",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-origin-definition-a2",
+          "text": "L’adresse IP du serveur",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-origin-definition-a3",
+          "text": "Le chemin de l’URL",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-who-enforces",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Qui applique la politique CORS ?",
+      "explanation": "CORS n’est pas une protection du serveur : curl ou un autre serveur ignorent ces en-têtes. Le navigateur protège l’utilisateur.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/CORS",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-who-enforces-a0",
+          "text": "Le navigateur, qui bloque la lecture de la réponse par le script",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-who-enforces-a1",
+          "text": "Le serveur, qui refuse d’exécuter la requête",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-who-enforces-a2",
+          "text": "Le pare-feu réseau",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-who-enforces-a3",
+          "text": "Le DNS",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-wildcard-credentials",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Une requête fetch avec credentials: \"include\" reçoit Access-Control-Allow-Origin: *. Que se passe-t-il ?",
+      "explanation": "Avec identifiants, le serveur doit renvoyer l’origine exacte et Access-Control-Allow-Credentials: true.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/CORS#requêtes_avec_informations_dauthentification",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-wildcard-credentials-a0",
+          "text": "Le navigateur bloque la réponse : le joker est interdit pour une requête avec identifiants",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-wildcard-credentials-a1",
+          "text": "La réponse est lisible, le joker autorise tout",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-wildcard-credentials-a2",
+          "text": "Le navigateur retire les cookies et relance la requête",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-wildcard-credentials-a3",
+          "text": "Le serveur renvoie automatiquement une 401",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-allow-credentials",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Quel en-tête de réponse autorise le script à lire une réponse obtenue avec cookies ?",
+      "explanation": "Sans Access-Control-Allow-Credentials: true (et une origine explicite), la réponse d’une requête « credentialed » reste illisible.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-allow-credentials-a0",
+          "text": "Access-Control-Allow-Credentials: true",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-allow-credentials-a1",
+          "text": "Access-Control-Allow-Cookies: true",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-allow-credentials-a2",
+          "text": "Access-Control-Expose-Headers: Cookie",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-allow-credentials-a3",
+          "text": "Vary: Cookie",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-preflight-trigger",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Laquelle de ces requêtes cross-origin déclenche un preflight OPTIONS ?",
+      "explanation": "application/json ne fait pas partie des Content-Type « simples » (text/plain, multipart/form-data, x-www-form-urlencoded) : un preflight est requis.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Preflight_request",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-preflight-trigger-a0",
+          "text": "Un POST avec Content-Type: application/json",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-preflight-trigger-a1",
+          "text": "Un GET sans en-tête personnalisé",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-preflight-trigger-a2",
+          "text": "Un POST de formulaire en application/x-www-form-urlencoded",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-preflight-trigger-a3",
+          "text": "Un HEAD sans en-tête personnalisé",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-max-age",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "À quoi sert Access-Control-Max-Age ?",
+      "explanation": "Il évite de refaire un OPTIONS avant chaque requête. Le cache HTTP de la réponse relève de Cache-Control.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Access-Control-Max-Age",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-max-age-a0",
+          "text": "Indiquer combien de temps le résultat du preflight peut être mis en cache",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-max-age-a1",
+          "text": "Limiter la durée de vie des cookies cross-origin",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-max-age-a2",
+          "text": "Fixer le délai maximal de la requête principale",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-max-age-a3",
+          "text": "Définir la durée du cache HTTP de la réponse",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-expose-headers",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Le script ne parvient pas à lire l’en-tête X-Total-Count d’une réponse cross-origin. Quelle est la correction ?",
+      "explanation": "Allow-Headers concerne les en-têtes que le client peut ENVOYER. Expose-Headers liste ceux que le script peut LIRE.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Access-Control-Expose-Headers",
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-expose-headers-a0",
+          "text": "Ajouter Access-Control-Expose-Headers: X-Total-Count à la réponse",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-expose-headers-a1",
+          "text": "Ajouter Access-Control-Allow-Headers: X-Total-Count à la réponse",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-expose-headers-a2",
+          "text": "Envoyer X-Total-Count dans la requête",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-expose-headers-a3",
+          "text": "Passer mode: \"no-cors\" au fetch",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-no-cors-mode",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Que produit fetch(url, { mode: \"no-cors\" }) vers une autre origine ?",
+      "explanation": "no-cors ne contourne rien : il donne une réponse opaque, utile surtout pour les Service Workers.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/API/Request/mode",
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-no-cors-mode-a0",
+          "text": "Une réponse « opaque » dont le script ne peut lire ni le corps ni le statut",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-no-cors-mode-a1",
+          "text": "Une réponse lisible qui contourne CORS",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-no-cors-mode-a2",
+          "text": "Une erreur immédiate sans requête réseau",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-no-cors-mode-a3",
+          "text": "Une requête envoyée sans cookies mais lisible",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-vary-origin",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "Le serveur renvoie Access-Control-Allow-Origin avec l’origine de la requête, choisie dans une liste. Quel en-tête ajouter pour les caches ?",
+      "explanation": "Sans Vary: Origin, un cache partagé peut servir à l’origine B une réponse qui autorise l’origine A.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Vary",
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-vary-origin-a0",
+          "text": "Vary: Origin",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-vary-origin-a1",
+          "text": "Cache-Control: public",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-vary-origin-a2",
+          "text": "Vary: Cookie",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-vary-origin-a3",
+          "text": "ETag",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cors-not-csrf-protection",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "STANDARD",
+      "statement": "CORS protège-t-il un formulaire POST cross-site contre le CSRF ?",
+      "explanation": "CORS restreint la lecture de la réponse, pas l’envoi des requêtes simples. Le CSRF se combat avec SameSite, jetons anti-CSRF et vérification de l’origine.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/CSRF",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cors-not-csrf-protection-a0",
+          "text": "Non : un formulaire simple est envoyé sans preflight, avec les cookies, même si la réponse est illisible",
+          "isCorrect": true
+        },
+        {
+          "id": "cors-not-csrf-protection-a1",
+          "text": "Oui, le navigateur bloque toute requête cross-origin",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-not-csrf-protection-a2",
+          "text": "Oui, si Access-Control-Allow-Origin n’est pas défini",
+          "isCorrect": false
+        },
+        {
+          "id": "cors-not-csrf-protection-a3",
+          "text": "Non, mais uniquement pour les requêtes GET",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-jwt-payload-readable",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Le payload d’un JWT signé (JWS) est-il confidentiel ?",
+      "explanation": "La signature garantit l’intégrité, pas la confidentialité. Ne jamais y mettre de secret.",
+      "mdnUrl": null,
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-jwt-payload-readable-a0",
+          "text": "Non : il est seulement encodé en base64url, n’importe qui peut le lire",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-jwt-payload-readable-a1",
+          "text": "Oui, la signature le chiffre",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-jwt-payload-readable-a2",
+          "text": "Oui, seul le serveur possède la clé pour le décoder",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-jwt-payload-readable-a3",
+          "text": "Seulement si l’algorithme est HS256",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-jwt-revocation",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Quel est l’inconvénient principal d’un JWT d’accès à longue durée de vie ?",
+      "explanation": "Un JWT est vérifié sans consulter la base : volé, il reste valable. D’où des jetons d’accès courts et un refresh token révocable.",
+      "mdnUrl": null,
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-jwt-revocation-a0",
+          "text": "Il est difficile à révoquer avant son expiration sans état côté serveur",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-jwt-revocation-a1",
+          "text": "Il ne peut pas contenir l’identifiant de l’utilisateur",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-jwt-revocation-a2",
+          "text": "Il ne fonctionne pas en HTTPS",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-jwt-revocation-a3",
+          "text": "Il oblige à stocker le mot de passe côté client",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-httponly",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Que garantit l’attribut HttpOnly sur un cookie ?",
+      "explanation": "HttpOnly limite le vol de cookie par XSS. L’envoi en HTTPS seul est l’affaire de Secure, le cross-site de SameSite.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Cookies#restreindre_laccès_aux_cookies",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-httponly-a0",
+          "text": "Le cookie est inaccessible à JavaScript via document.cookie",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-httponly-a1",
+          "text": "Le cookie n’est envoyé qu’en HTTPS",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-httponly-a2",
+          "text": "Le cookie n’est jamais envoyé en cross-site",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-httponly-a3",
+          "text": "Le cookie est chiffré par le navigateur",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-samesite-lax",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Avec SameSite=Lax, quand un cookie est-il envoyé lors d’une requête venant d’un autre site ?",
+      "explanation": "Lax bloque les sous-requêtes et POST cross-site, mais autorise la navigation GET de premier niveau. Strict bloque aussi celle-ci.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Set-Cookie#samesitesamesite-value",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-samesite-lax-a0",
+          "text": "Lors d’une navigation de premier niveau en GET (clic sur un lien)",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-samesite-lax-a1",
+          "text": "Jamais",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-samesite-lax-a2",
+          "text": "Lors d’un POST de formulaire cross-site",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-samesite-lax-a3",
+          "text": "Lors d’un fetch cross-site avec credentials: \"include\"",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-samesite-none-secure",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Que faut-il obligatoirement ajouter à un cookie SameSite=None pour que les navigateurs l’acceptent ?",
+      "explanation": "Les navigateurs modernes rejettent un cookie SameSite=None qui n’est pas aussi Secure.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Set-Cookie",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-samesite-none-secure-a0",
+          "text": "Secure",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-samesite-none-secure-a1",
+          "text": "HttpOnly",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-samesite-none-secure-a2",
+          "text": "Path=/",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-samesite-none-secure-a3",
+          "text": "Max-Age",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-token-storage-xss",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Pourquoi éviter de stocker un jeton d’accès de longue durée dans localStorage ?",
+      "explanation": "localStorage est lisible par tout JS de l’origine et persiste. Un jeton court en mémoire plus un refresh en cookie HttpOnly réduit l’exposition.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/API/Window/localStorage",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-token-storage-xss-a0",
+          "text": "Tout script injecté (XSS) sur la page peut le lire et l’exfiltrer",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-token-storage-xss-a1",
+          "text": "localStorage est vidé à chaque rechargement",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-token-storage-xss-a2",
+          "text": "localStorage est envoyé automatiquement à chaque requête",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-token-storage-xss-a3",
+          "text": "localStorage ne peut stocker que des nombres",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-cookie-csrf",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Une authentification par cookie de session expose à quelle attaque que le header Authorization: Bearer évite ?",
+      "explanation": "Le cookie part tout seul avec la requête forgée. Un Bearer doit être ajouté explicitement par le script, ce qu’un site tiers ne peut pas faire.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/CSRF",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-cookie-csrf-a0",
+          "text": "Le CSRF, car le navigateur joint le cookie automatiquement",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-cookie-csrf-a1",
+          "text": "Le XSS",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-cookie-csrf-a2",
+          "text": "L’injection SQL",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-cookie-csrf-a3",
+          "text": "Le clickjacking uniquement",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-password-hash",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Quelle méthode convient pour stocker des mots de passe ?",
+      "explanation": "Un hash rapide se brute-force à grande vitesse, un chiffrement se déchiffre si la clé fuit. Argon2id est lent et résistant aux GPU.",
+      "mdnUrl": null,
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-password-hash-a0",
+          "text": "Un hachage lent et salé dédié comme Argon2id ou bcrypt",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-password-hash-a1",
+          "text": "SHA-256 sans sel",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-password-hash-a2",
+          "text": "Un chiffrement AES réversible",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-password-hash-a3",
+          "text": "Un encodage base64",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-alg-none",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Un serveur accepte un JWT dont l’en-tête indique \"alg\": \"none\". Quel est le risque ?",
+      "explanation": "Le vérificateur doit imposer la liste des algorithmes attendus et refuser \"none\" — c’est ce que fait jose avec l’option algorithms.",
+      "mdnUrl": null,
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-alg-none-a0",
+          "text": "Un attaquant peut forger un jeton non signé avec les droits de son choix",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-alg-none-a1",
+          "text": "Aucun, le payload reste chiffré",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-alg-none-a2",
+          "text": "Le jeton expire immédiatement",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-alg-none-a3",
+          "text": "Le serveur ne peut plus lire le payload",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-refresh-rotation",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Quel est l’intérêt de la rotation des refresh tokens ?",
+      "explanation": "Chaque refresh délivre un nouveau jeton et invalide l’ancien. Si un ancien revient, c’est un vol : on révoque la famille entière.",
+      "mdnUrl": null,
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-refresh-rotation-a0",
+          "text": "Détecter la réutilisation d’un ancien jeton volé et révoquer toute la chaîne",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-refresh-rotation-a1",
+          "text": "Raccourcir le jeton d’accès",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-refresh-rotation-a2",
+          "text": "Éviter d’utiliser HTTPS",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-refresh-rotation-a3",
+          "text": "Permettre de stocker le refresh token dans l’URL",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "auth-cookie-path",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "STANDARD",
+      "statement": "Pourquoi poser le refresh token avec Path=/auth ?",
+      "explanation": "Path restreint les URL auxquelles le cookie est joint : moins d’envois, moins d’exposition. Ce n’est pas une frontière de sécurité contre le JS (c’est HttpOnly).",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Cookies#portée_des_cookies",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "auth-cookie-path-a0",
+          "text": "Pour que le navigateur ne l’envoie qu’aux routes d’authentification",
+          "isCorrect": true
+        },
+        {
+          "id": "auth-cookie-path-a1",
+          "text": "Pour le rendre illisible par JavaScript",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-cookie-path-a2",
+          "text": "Pour qu’il expire à la fermeture de l’onglet",
+          "isCorrect": false
+        },
+        {
+          "id": "auth-cookie-path-a3",
+          "text": "Pour le chiffrer côté navigateur",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-xss-definition",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Qu’est-ce qu’une faille XSS ?",
+      "explanation": "Cross-Site Scripting : du code de l’attaquant s’exécute dans l’origine du site visé. Le second choix décrit le CSRF.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Cross-site_scripting",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-xss-definition-a0",
+          "text": "L’exécution de script injecté par un attaquant dans la page d’un autre utilisateur",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-xss-definition-a1",
+          "text": "L’envoi d’une requête forgée depuis un autre site avec les cookies de la victime",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-xss-definition-a2",
+          "text": "L’injection de commandes SQL dans un formulaire",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-xss-definition-a3",
+          "text": "L’affichage du site dans une iframe invisible",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-xss-innerhtml",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Pour afficher un pseudo saisi par un utilisateur, quelle API DOM évite le XSS ?",
+      "explanation": "textContent insère du texte brut, jamais interprété comme HTML. React fait de même par défaut, sauf avec dangerouslySetInnerHTML.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/API/Node/textContent",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-xss-innerhtml-a0",
+          "text": "element.textContent = pseudo",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-xss-innerhtml-a1",
+          "text": "element.innerHTML = pseudo",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-xss-innerhtml-a2",
+          "text": "document.write(pseudo)",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-xss-innerhtml-a3",
+          "text": "element.outerHTML = pseudo",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-csp",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Quel mécanisme limite l’impact d’un XSS en restreignant les sources de scripts autorisées ?",
+      "explanation": "CSP (script-src, nonces, hashes) empêche l’exécution de scripts inline ou étrangers. HSTS force HTTPS, CORS gère la lecture cross-origin.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/CSP",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-csp-a0",
+          "text": "Content-Security-Policy",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-csp-a1",
+          "text": "Strict-Transport-Security",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-csp-a2",
+          "text": "Access-Control-Allow-Origin",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-csp-a3",
+          "text": "X-Content-Type-Options",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-sql-injection",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Quelle est la défense principale contre l’injection SQL ?",
+      "explanation": "Avec des paramètres liés, la donnée n’est jamais interprétée comme du SQL. L’échappement manuel est fragile ; masquer les erreurs ne corrige rien.",
+      "mdnUrl": null,
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-sql-injection-a0",
+          "text": "Les requêtes paramétrées (requêtes préparées)",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-sql-injection-a1",
+          "text": "Échapper les guillemets à la main",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-sql-injection-a2",
+          "text": "Masquer les messages d’erreur SQL",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-sql-injection-a3",
+          "text": "Utiliser POST au lieu de GET",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-csrf-token",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Comment fonctionne un jeton anti-CSRF ?",
+      "explanation": "Le site attaquant peut provoquer l’envoi des cookies, mais pas lire le jeton (same-origin policy), donc pas le renvoyer.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/CSRF",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-csrf-token-a0",
+          "text": "Le serveur exige un secret imprévisible que seul le vrai site peut lire et renvoyer",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-csrf-token-a1",
+          "text": "Il chiffre le cookie de session",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-csrf-token-a2",
+          "text": "Il remplace HTTPS",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-csrf-token-a3",
+          "text": "Il empêche l’exécution de scripts inline",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-clickjacking",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Quelle directive empêche un autre site d’afficher votre page dans une iframe (clickjacking) ?",
+      "explanation": "frame-ancestors (ou l’ancien X-Frame-Options: DENY) interdit l’intégration. X-XSS-Protection est obsolète et sans rapport.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-clickjacking-a0",
+          "text": "Content-Security-Policy: frame-ancestors 'none'",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-clickjacking-a1",
+          "text": "X-XSS-Protection: 1",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-clickjacking-a2",
+          "text": "Referrer-Policy: no-referrer",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-clickjacking-a3",
+          "text": "Cross-Origin-Resource-Policy: same-site",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-nosniff",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Que fait X-Content-Type-Options: nosniff ?",
+      "explanation": "Sans nosniff, un fichier texte téléversé pourrait être interprété comme script. L’en-tête force le respect du Content-Type.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/X-Content-Type-Options",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-nosniff-a0",
+          "text": "Il interdit au navigateur de deviner un type MIME différent du Content-Type annoncé",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-nosniff-a1",
+          "text": "Il empêche la mise en cache de la réponse",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-nosniff-a2",
+          "text": "Il bloque les requêtes cross-origin",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-nosniff-a3",
+          "text": "Il masque l’en-tête Server",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-client-validation",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Le formulaire valide déjà les champs en JavaScript. Faut-il revalider côté serveur ?",
+      "explanation": "La validation client sert l’ergonomie. La sécurité repose sur le serveur (ici Zod), qui ne fait confiance à rien.",
+      "mdnUrl": null,
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-client-validation-a0",
+          "text": "Oui : toute requête peut être forgée sans passer par le formulaire",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-client-validation-a1",
+          "text": "Non, la validation client suffit",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-client-validation-a2",
+          "text": "Seulement pour les champs de mot de passe",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-client-validation-a3",
+          "text": "Seulement si le site n’est pas en HTTPS",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-stored-xss",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Un commentaire contenant <script> est enregistré puis affiché à tous les visiteurs. De quel type de XSS s’agit-il ?",
+      "explanation": "Stocké : la charge vit en base et touche chaque lecteur. Réfléchi : elle revient dans la réponse à une URL piégée.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Cross-site_scripting",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-stored-xss-a0",
+          "text": "XSS stocké (persistant)",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-stored-xss-a1",
+          "text": "XSS réfléchi",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-stored-xss-a2",
+          "text": "CSRF",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-stored-xss-a3",
+          "text": "Injection SQL",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-hsts",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Quel en-tête oblige le navigateur à n’utiliser que HTTPS pour un domaine lors des visites suivantes ?",
+      "explanation": "HSTS (avec max-age) empêche le downgrade en HTTP. Secure est un attribut de cookie, pas un en-tête de réponse.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Strict-Transport-Security",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-hsts-a0",
+          "text": "Strict-Transport-Security",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-hsts-a1",
+          "text": "Upgrade-Insecure-Requests",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-hsts-a2",
+          "text": "Content-Security-Policy: default-src https:",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-hsts-a3",
+          "text": "Secure",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "sec-error-leak",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "STANDARD",
+      "statement": "Que doit renvoyer une API en production quand une exception inattendue survient ?",
+      "explanation": "Une stack trace divulgue chemins, versions et requêtes. Le statut doit rester honnête (5xx) et le détail aller dans les logs.",
+      "mdnUrl": null,
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "sec-error-leak-a0",
+          "text": "Un 500 avec un message générique, la trace étant consignée côté serveur",
+          "isCorrect": true
+        },
+        {
+          "id": "sec-error-leak-a1",
+          "text": "Un 500 avec la pile d’appels complète pour aider au débogage",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-error-leak-a2",
+          "text": "Un 200 avec un champ error",
+          "isCorrect": false
+        },
+        {
+          "id": "sec-error-leak-a3",
+          "text": "Un 400 pour ne pas inquiéter le client",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-no-cache-vs-no-store",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Que signifie Cache-Control: no-cache ?",
+      "explanation": "Piège classique : c’est no-store qui interdit le stockage. no-cache impose seulement la revalidation.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Cache-Control#no-cache",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-no-cache-vs-no-store-a0",
+          "text": "La réponse peut être stockée, mais doit être revalidée auprès du serveur avant chaque réutilisation",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-no-cache-vs-no-store-a1",
+          "text": "La réponse ne doit jamais être stockée",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-no-cache-vs-no-store-a2",
+          "text": "La réponse expire après une heure",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-no-cache-vs-no-store-a3",
+          "text": "Seuls les caches partagés peuvent la conserver",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-no-store",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Quelle directive utiliser pour une réponse contenant des données bancaires personnelles ?",
+      "explanation": "no-store interdit tout stockage, dans le navigateur comme dans les caches intermédiaires.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Cache-Control#no-store",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-no-store-a0",
+          "text": "Cache-Control: no-store",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-no-store-a1",
+          "text": "Cache-Control: no-cache",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-no-store-a2",
+          "text": "Cache-Control: public, max-age=60",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-no-store-a3",
+          "text": "Pragma: public",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-private",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Que signifie Cache-Control: private ?",
+      "explanation": "private exclut les caches partagés, utile pour une réponse propre à un utilisateur.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Cache-Control#private",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-private-a0",
+          "text": "Seul le cache du navigateur peut stocker la réponse, pas un CDN ni un proxy partagé",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-private-a1",
+          "text": "La réponse ne peut être lue qu’en HTTPS",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-private-a2",
+          "text": "La réponse ne doit pas être stockée du tout",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-private-a3",
+          "text": "La réponse est chiffrée dans le cache",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-etag-304",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Le client envoie If-None-Match avec l’ETag qu’il possède et la ressource n’a pas changé. Que répond le serveur ?",
+      "explanation": "304 dit au client de réutiliser sa copie. 412 sert aux préconditions qui échouent, par exemple If-Match lors d’une écriture.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/304",
+      "difficulty": 1,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-etag-304-a0",
+          "text": "304 Not Modified, sans corps",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-etag-304-a1",
+          "text": "200 OK avec le corps complet",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-etag-304-a2",
+          "text": "204 No Content",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-etag-304-a3",
+          "text": "412 Precondition Failed",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-last-modified",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Quel en-tête de requête accompagne le validateur Last-Modified lors d’une revalidation ?",
+      "explanation": "If-Modified-Since rejoue la date ; If-None-Match rejoue l’ETag. If-Unmodified-Since protège plutôt des écritures concurrentes.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/If-Modified-Since",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-last-modified-a0",
+          "text": "If-Modified-Since",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-last-modified-a1",
+          "text": "If-None-Match",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-last-modified-a2",
+          "text": "If-Unmodified-Since",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-last-modified-a3",
+          "text": "If-Range",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-if-match-lost-update",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Comment éviter qu’un PUT écrase la modification d’un autre client faite entre-temps ?",
+      "explanation": "If-Match implémente un verrou optimiste. If-None-Match: * sert à l’inverse : ne créer que si la ressource n’existe pas.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/If-Match",
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-if-match-lost-update-a0",
+          "text": "Envoyer If-Match avec l’ETag lu : le serveur répond 412 si la ressource a changé",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-if-match-lost-update-a1",
+          "text": "Envoyer Cache-Control: no-cache dans la requête",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-if-match-lost-update-a2",
+          "text": "Utiliser POST au lieu de PUT",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-if-match-lost-update-a3",
+          "text": "Envoyer If-None-Match: *",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-s-maxage",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Quelle directive fixe une durée de fraîcheur propre aux caches partagés (CDN) ?",
+      "explanation": "s-maxage prime sur max-age pour les caches partagés. max-stale et min-fresh sont des directives de requête.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Cache-Control#s-maxage",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-s-maxage-a0",
+          "text": "s-maxage",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-s-maxage-a1",
+          "text": "max-stale",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-s-maxage-a2",
+          "text": "min-fresh",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-s-maxage-a3",
+          "text": "stale-if-error",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-immutable-fingerprint",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Pour un fichier app.3f9a1c.js dont le nom change à chaque build, quelle politique est adaptée ?",
+      "explanation": "Le nom empreinté garantit qu’un contenu nouveau a une nouvelle URL : on peut le garder un an sans revalider.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Cache-Control#immutable",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-immutable-fingerprint-a0",
+          "text": "Cache-Control: public, max-age=31536000, immutable",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-immutable-fingerprint-a1",
+          "text": "Cache-Control: no-store",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-immutable-fingerprint-a2",
+          "text": "Cache-Control: no-cache",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-immutable-fingerprint-a3",
+          "text": "Expires: 0",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-vary",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Une même URL renvoie du JSON ou du HTML selon l’en-tête Accept. Que faut-il ajouter ?",
+      "explanation": "Vary indique aux caches quels en-têtes de requête font partie de la clé de cache.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Vary",
+      "difficulty": 2,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-vary-a0",
+          "text": "Vary: Accept",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-vary-a1",
+          "text": "Cache-Control: private",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-vary-a2",
+          "text": "Content-Location",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-vary-a3",
+          "text": "ETag: W/\"json\"",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-weak-etag",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Que signifie le préfixe W/ dans ETag: W/\"abc\" ?",
+      "explanation": "Un ETag faible tolère des différences mineures (compression, espaces). Il ne convient pas aux requêtes de plage (Range).",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/ETag",
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-weak-etag-a0",
+          "text": "Un validateur faible : les représentations sont équivalentes, pas forcément identiques octet par octet",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-weak-etag-a1",
+          "text": "L’ETag est chiffré",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-weak-etag-a2",
+          "text": "La ressource est en écriture seule",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-weak-etag-a3",
+          "text": "L’ETag n’est valable que pour les requêtes WebSocket",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "cache-stale-while-revalidate",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "STANDARD",
+      "statement": "Que permet la directive stale-while-revalidate=60 ?",
+      "explanation": "L’utilisateur obtient une réponse immédiate et la copie est rafraîchie en tâche de fond. Le dernier choix décrit stale-if-error.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Cache-Control#stale-while-revalidate",
+      "difficulty": 3,
+      "timeLimitMs": 20000,
+      "basePoints": 100,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "cache-stale-while-revalidate-a0",
+          "text": "Servir une copie périmée pendant 60 s tout en la revalidant en arrière-plan",
+          "isCorrect": true
+        },
+        {
+          "id": "cache-stale-while-revalidate-a1",
+          "text": "Revalider toutes les 60 secondes même si la copie est fraîche",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-stale-while-revalidate-a2",
+          "text": "Interdire le cache pendant 60 secondes",
+          "isCorrect": false
+        },
+        {
+          "id": "cache-stale-while-revalidate-a3",
+          "text": "Servir une copie périmée uniquement si le serveur répond 5xx",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "boss-http-401-expired-token",
+      "themeId": "theme-http",
+      "themeSlug": "http",
+      "kind": "BOSS",
+      "statement": "Un jeton d’accès expiré arrive sur une route protégée. Quel statut permet au client de comprendre qu’il doit rafraîchir sa session ?",
+      "explanation": "L’identité n’est plus prouvée : c’est 401. 403 inciterait le client à abandonner. 419 et 440 ne sont pas des statuts HTTP standard.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Status/401",
+      "difficulty": 3,
+      "timeLimitMs": 15000,
+      "basePoints": 200,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "boss-http-401-expired-token-a0",
+          "text": "401 Unauthorized",
+          "isCorrect": true
+        },
+        {
+          "id": "boss-http-401-expired-token-a1",
+          "text": "403 Forbidden",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-http-401-expired-token-a2",
+          "text": "419 Session Expired",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-http-401-expired-token-a3",
+          "text": "440 Login Time-out",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "boss-rest-retry-safe",
+      "themeId": "theme-rest",
+      "themeSlug": "rest",
+      "kind": "BOSS",
+      "statement": "Un proxy peut rejouer automatiquement une requête après une coupure. Laquelle peut-il rejouer sans risque ?",
+      "explanation": "Seules les méthodes idempotentes se rejouent sans changer le résultat. PUT complet l’est ; POST et un PATCH d’incrément ne le sont pas.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/Idempotent",
+      "difficulty": 3,
+      "timeLimitMs": 15000,
+      "basePoints": 200,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "boss-rest-retry-safe-a0",
+          "text": "PUT /profile avec la représentation complète",
+          "isCorrect": true
+        },
+        {
+          "id": "boss-rest-retry-safe-a1",
+          "text": "POST /orders",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-rest-retry-safe-a2",
+          "text": "PATCH /counter avec {\"op\":\"increment\"}",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-rest-retry-safe-a3",
+          "text": "POST /payments",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "boss-cors-credentialed-config",
+      "themeId": "theme-cors",
+      "themeSlug": "cors",
+      "kind": "BOSS",
+      "statement": "Le client sur http://localhost:43123 appelle l’API avec credentials: \"include\". Quelle réponse de l’API fonctionne ?",
+      "explanation": "Avec identifiants, il faut l’origine exacte (schéma, hôte et port) ET Allow-Credentials: true. Le joker est refusé.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/CORS",
+      "difficulty": 3,
+      "timeLimitMs": 15000,
+      "basePoints": 200,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "boss-cors-credentialed-config-a0",
+          "text": "Access-Control-Allow-Origin: http://localhost:43123 et Access-Control-Allow-Credentials: true",
+          "isCorrect": true
+        },
+        {
+          "id": "boss-cors-credentialed-config-a1",
+          "text": "Access-Control-Allow-Origin: * et Access-Control-Allow-Credentials: true",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-cors-credentialed-config-a2",
+          "text": "Access-Control-Allow-Origin: localhost et Access-Control-Allow-Credentials: true",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-cors-credentialed-config-a3",
+          "text": "Access-Control-Allow-Origin: http://localhost:43123 sans autre en-tête",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "boss-auth-storage-design",
+      "themeId": "theme-auth",
+      "themeSlug": "auth",
+      "kind": "BOSS",
+      "statement": "Quelle combinaison limite le mieux à la fois le vol de jeton par XSS et le CSRF ?",
+      "explanation": "En mémoire, le jeton d’accès disparaît au rechargement et n’est pas joint automatiquement (pas de CSRF). Le refresh, HttpOnly, échappe au JS.",
+      "mdnUrl": null,
+      "difficulty": 3,
+      "timeLimitMs": 15000,
+      "basePoints": 200,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "boss-auth-storage-design-a0",
+          "text": "Jeton d’accès court en mémoire (Bearer) et refresh token en cookie HttpOnly, SameSite, Path restreint",
+          "isCorrect": true
+        },
+        {
+          "id": "boss-auth-storage-design-a1",
+          "text": "Jeton d’accès de 30 jours dans localStorage",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-auth-storage-design-a2",
+          "text": "Jeton d’accès en cookie lisible par JavaScript, SameSite=None",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-auth-storage-design-a3",
+          "text": "Refresh token dans sessionStorage et jeton d’accès dans l’URL",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "boss-sec-csrf-defenses",
+      "themeId": "theme-securite",
+      "themeSlug": "securite",
+      "kind": "BOSS",
+      "statement": "Laquelle de ces mesures NE protège PAS contre le CSRF ?",
+      "explanation": "HttpOnly empêche JavaScript de lire le cookie, mais le navigateur continue de l’envoyer avec la requête forgée.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Glossary/CSRF",
+      "difficulty": 3,
+      "timeLimitMs": 15000,
+      "basePoints": 200,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "boss-sec-csrf-defenses-a0",
+          "text": "Activer HttpOnly sur le cookie de session",
+          "isCorrect": true
+        },
+        {
+          "id": "boss-sec-csrf-defenses-a1",
+          "text": "Poser le cookie avec SameSite=Lax ou Strict",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-sec-csrf-defenses-a2",
+          "text": "Exiger un jeton anti-CSRF dans chaque requête qui modifie l’état",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-sec-csrf-defenses-a3",
+          "text": "Vérifier l’en-tête Origin des requêtes qui modifient l’état",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "id": "boss-cache-user-data-cdn",
+      "themeId": "theme-cache",
+      "themeSlug": "cache",
+      "kind": "BOSS",
+      "statement": "GET /me renvoie le profil de l’utilisateur connecté et passe par un CDN. Quelle politique évite de servir le profil d’Alice à Bob ?",
+      "explanation": "private interdit le stockage par le CDN ; no-cache force la revalidation dans le navigateur. Un ETag seul ne dit pas qui a le droit de stocker la réponse.",
+      "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Headers/Cache-Control",
+      "difficulty": 3,
+      "timeLimitMs": 15000,
+      "basePoints": 200,
+      "isActive": true,
+      "answers": [
+        {
+          "id": "boss-cache-user-data-cdn-a0",
+          "text": "Cache-Control: private, no-cache",
+          "isCorrect": true
+        },
+        {
+          "id": "boss-cache-user-data-cdn-a1",
+          "text": "Cache-Control: public, max-age=300",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-cache-user-data-cdn-a2",
+          "text": "Cache-Control: s-maxage=60",
+          "isCorrect": false
+        },
+        {
+          "id": "boss-cache-user-data-cdn-a3",
+          "text": "ETag seul, sans Cache-Control",
+          "isCorrect": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import type { ApiError, AuthResponse } from '@fps/shared';
+import type { ApiError, AuthResponse } from './types';
 
 export const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:43124';
 

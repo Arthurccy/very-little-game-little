@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, type Group, type MeshBasicMaterial, type MeshStandardMaterial } from 'three';
-import type { PublicAnswer } from '@fps/shared';
+import type { PublicAnswer } from '../../api/types';
 import { Burst } from './Burst';
 
 /**

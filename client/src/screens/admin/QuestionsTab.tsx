@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AdminQuestionDTO, QuestionKind, ThemeDTO } from '@fps/shared';
+import type { AdminQuestion, QuestionKind, Theme } from '../../api/types';
 import { adminApi } from '../../api/endpoints';
 import { QuestionForm } from './QuestionForm';
 
-export function QuestionsTab({ themes }: { themes: ThemeDTO[] }) {
+export function QuestionsTab({ themes }: { themes: Theme[] }) {
   const [themeId, setThemeId] = useState('');
   const [kind, setKind] = useState<QuestionKind | ''>('');
   const [includeInactive, setIncludeInactive] = useState(true);
-  const [questions, setQuestions] = useState<AdminQuestionDTO[] | null>(null);
-  const [editing, setEditing] = useState<AdminQuestionDTO | 'new' | null>(null);
+  const [questions, setQuestions] = useState<AdminQuestion[] | null>(null);
+  const [editing, setEditing] = useState<AdminQuestion | 'new' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -19,7 +19,7 @@ export function QuestionsTab({ themes }: { themes: ThemeDTO[] }) {
 
   useEffect(load, [load]);
 
-  async function toggleActive(q: AdminQuestionDTO) {
+  async function toggleActive(q: AdminQuestion) {
     try {
       if (q.isActive) await adminApi.deactivate(q.id);
       else await adminApi.update(q.id, { ...q, isActive: true });

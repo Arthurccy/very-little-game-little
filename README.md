@@ -63,6 +63,8 @@ Connecte-toi avec le compte admin du `.env` pour accéder au back-office, ou cr�
 |---|---|
 | `npm run dev` | API (rechargement à chaud) et client Vite en parallèle |
 | `npm run dev:server` / `dev:client` | l’un ou l’autre |
+| `npm run dev:mock` | client seul, API simulée par MSW (aucun backend nécessaire) |
+| `npm run generate:api` | régénère les types du front depuis `contracts/openapi.yaml` et `contracts/integration-v1.yaml` |
 | `npm run play` | version optimisée (build de production du client) : la plus fluide pour jouer |
 | `npm test` | tests d’intégration de l’API (base `<DATABASE_URL>_test`, créée et vidée automatiquement) |
 | `npm run test:e2e` | tests de bout en bout Playwright : lance l’API et le client sur des ports dédiés, base `<DATABASE_URL>_e2e` |
@@ -73,6 +75,35 @@ Connecte-toi avec le compte admin du `.env` pour accéder au back-office, ou cr�
 | `npm run db:migrate` | `prisma migrate dev` (ajouter `-- --name <nom>` pour une nouvelle migration) |
 | `npm run db:seed` | rejoue le seed (rejouable sans doublons) |
 | `npm run db:reset` | vide la base, rejoue migrations et seed |
+
+## Front sans backend : maquettes MSW
+
+```bash
+npm install
+npm run dev:mock              # client seul sur http://localhost:43123, API simulée par Mock Service Worker
+```
+
+- **Contrats** (`contracts/`) : `openapi.yaml` est le contrat de l’équipe (notre API, v0.2) ;
+  `integration-v1.yaml` est le contrat du hub Full-Stack Quest (intervenant). Le front ne déclare aucun contrat à lui.
+- **Types générés** : `npm run generate:api` produit `client/src/api/schema.d.ts` (depuis `openapi.yaml`) et
+  `client/src/api/hub-schema.d.ts` (depuis `integration-v1.yaml`) ; ne pas les modifier à la main. Tout le front
+  utilise ces types pour les données d’API (`shared` ne sert plus qu’aux règles de jeu).
+- **v0.2 et serveur actuel** : le contrat pagine les listes et répond 422 aux erreurs de validation ; les maquettes
+  suivent le contrat. En attendant que le serveur l’implémente, `client/src/api/endpoints.ts` accepte aussi l’ancien
+  format (tableaux simples, 400) : une seule fonction, `asPage`, à retirer ensuite.
+- **Relais du hub** : `POST /hub/link`, `GET /hub/me` et le champ `hub` du bilan ne sont pas encore dans le contrat
+  de l’équipe ; ils sont proposés dans `client/src/api/hub-relay.ts`, à faire valider par le back.
+- **Handlers** (`client/src/mocks/`) : un faux serveur en mémoire rejoue l’arbitrage réel (tirage, chrono, tirs,
+  bonus, pause, classement, back-office) avec les 71 questions du seed. Chaque réponse est typée par le contrat.
+- **Hub Full-Stack Quest** : le front lit `fsq_token` dans l’URL de lancement, le retire aussitôt de l’URL et ne le
+  transmet qu’à notre back (`POST /hub/link`). Seul le back appelle le hub (`/api/v1/me`, `/api/v1/scores`) ; la clé
+  `X-Game-Key` ne quitte jamais le serveur. En maquette, le panneau propose « Lancer depuis le hub » (jeton valide,
+  bac à sable ou expiré) et les appels que notre back ferait au hub sont tracés dans la console.
+- **Comptes de démo** : `joueur@demo.local` et `admin@demo.local`, mot de passe `motdepasse`.
+- **Un cas d’erreur par écran**, à choisir dans le panneau « Maquettes MSW » (en bas à gauche) : connexion 401,
+  lancement de partie 409, tirs 500, bilan 404, classement 500, back-office 422, jeton du hub refusé (422),
+  hub indisponible (502) et réseau coupé.
+- Le code des maquettes n’entre jamais dans le build de production.
 
 ## Tests et CI
 

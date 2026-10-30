@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { AuthResponse, LoginRequest, PublicUser, RegisterRequest } from '@fps/shared';
+import type { AuthResponse, LoginRequest, PublicUser, RegisterRequest } from '../api/types';
 import { refreshSession, setAccessToken, setSessionLostHandler } from '../api/client';
 import { authApi } from '../api/endpoints';
 

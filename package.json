@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
     "dev:server": "npm run dev -w server",
+    "dev:mock": "npm run dev:mock -w client",
     "play": "npm run build -w client && concurrently -n api,web -c blue,green \"npm run start -w server\" \"npm run preview -w client\"",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
@@ -22,6 +23,7 @@
     "db:reset": "npm run db:reset -w server --",
     "dev:client": "npm run dev -w client",
     "build:client": "npm run build -w client",
+    "generate:api": "npm run generate:api -w client",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test -w server",
     "test:e2e": "npm test -w e2e",

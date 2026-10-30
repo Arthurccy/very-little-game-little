@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import type { SessionStateDTO, SessionSummaryDTO } from '@fps/shared';
+import type { SessionState } from '../api/types';
+import type { HubScore, SessionSummaryWithHub } from '../api/hub-relay';
 import { gameApi } from '../api/endpoints';
 
 interface Props {
-  session: SessionStateDTO;
+  session: SessionState;
   onReplay: () => void;
   onLeaderboard: () => void;
   onMenu: () => void;
 }
 
-const TITLES: Record<SessionStateDTO['status'], string> = {
+const TITLES: Record<SessionState['status'], string> = {
   WON: 'Victoire !',
   LOST: 'Game over',
   ABANDONED: 'Partie abandonnée',
@@ -17,10 +18,11 @@ const TITLES: Record<SessionStateDTO['status'], string> = {
 };
 
 export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
-  const [summary, setSummary] = useState<SessionSummaryDTO | null>(null);
+  const [summary, setSummary] = useState<SessionSummaryWithHub | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    gameApi.summary(session.id).then(setSummary, () => setSummary(null));
+    gameApi.summary(session.id).then(setSummary, (e: Error) => setError(`Bilan indisponible : ${e.message}`));
   }, [session.id]);
 
   const final = summary?.session ?? session;
@@ -33,21 +35,27 @@ export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
       <dl className="stats">
         <div>
           <dt>Questions réussies</dt>
-          <dd>{summary ? `${summary.cleared} / ${final.total}` : '…'}</dd>
+          <dd>{summary ? `${summary.cleared} / ${final.total}` : error ? '—' : '…'}</dd>
         </div>
         <div>
           <dt>Questions ratées</dt>
-          <dd>{summary?.failed ?? '…'}</dd>
+          <dd>{summary?.failed ?? (error ? '—' : '…')}</dd>
         </div>
         <div>
           <dt>Meilleur combo</dt>
-          <dd>{summary?.bestCombo ?? '…'}</dd>
+          <dd>{summary?.bestCombo ?? (error ? '—' : '…')}</dd>
         </div>
         <div>
           <dt>PV restants</dt>
           <dd>{final.hp}</dd>
         </div>
       </dl>
+      {summary?.hub && <HubResult hub={summary.hub} />}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <p className="muted">
         {final.mode === 'TRAINING'
           ? 'Partie d’entraînement : hors classement.'
@@ -68,4 +76,25 @@ export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
       </div>
     </main>
   );
+}
+
+/** Résultat de l'envoi du score au hub Full-Stack Quest (fait par notre back). */
+function HubResult({ hub }: { hub: HubScore }) {
+  if (hub.status === 'SENT' && hub.result) {
+    return (
+      <p className="hub-badge hub-badge--ok">
+        {hub.result.xpGained > 0
+          ? `Score envoyé à Full-Stack Quest : +${hub.result.xpGained} XP`
+          : 'Score envoyé à Full-Stack Quest (sans XP : bac à sable ou niveau déjà validé aujourd’hui)'}
+      </p>
+    );
+  }
+  if (hub.status === 'FAILED') {
+    return (
+      <p className="hub-badge hub-badge--error" role="alert">
+        Le score n’a pas pu être envoyé à Full-Stack Quest.
+      </p>
+    );
+  }
+  return null;
 }
