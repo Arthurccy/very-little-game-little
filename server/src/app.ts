@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -21,6 +24,14 @@ export function createApp() {
 
   app.get('/health', (_req, res) => {
     res.set('Cache-Control', 'no-store').json({ status: 'ok' });
+  });
+
+  // Document lu par le hub : GET <url>/fsq-manifest.json. Le schéma est Manifest dans contracts/integration-v1.yaml.
+  const manifest = JSON.parse(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../fsq-manifest.json'), 'utf8'),
+  );
+  app.get('/fsq-manifest.json', (_req, res) => {
+    res.set('Cache-Control', 'no-cache').json(manifest);
   });
 
   app.use('/auth', authRouter);
