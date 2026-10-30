@@ -28,6 +28,9 @@ Projet de groupe (Ynov, année 2, front / back).
 Le front porte la scène 3D, le HUD et les écrans (menus, fin de partie, classement, back-office). Le back porte l’API,
 l’authentification, les règles de partie et la base de données.
 
+Le mode d'emploi du dépôt (contrat d'abord, frontière front/back, commits) est dans [`AGENTS.md`](AGENTS.md).
+Il sert à l'équipe et aux assistants.
+
 ## Prérequis
 
 - Node.js ≥ 20.19 et npm ≥ 10
