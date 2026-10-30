@@ -21,6 +21,7 @@ import { api, del, post, put } from './client';
 export const authApi = {
   register: (body: RegisterRequest) => post<AuthResponse>('/auth/register', body),
   login: (body: LoginRequest) => post<AuthResponse>('/auth/login', body),
+  fsqLogin: (fsqToken: string) => post<AuthResponse>('/auth/fsq-login', { fsqToken }),
   logout: () => post<void>('/auth/logout'),
 };
 

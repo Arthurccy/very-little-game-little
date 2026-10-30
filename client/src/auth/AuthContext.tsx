@@ -25,11 +25,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setSessionLostHandler(() => setUser(null));
+
+    // Règle d'intégration Full-Stack Quest :
+    // Le joueur arrive avec https://<notre-jeu>/?fsq_token=<JWT>
+    const params = new URLSearchParams(window.location.search);
+    const fsqToken = params.get('fsq_token');
+
+    if (fsqToken) {
+      // Nettoie l'URL sans recharger la page pour ne pas exposer le token dans l'historique
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+
+      // Authentifie automatiquement le joueur auprès de notre backend
+      authApi.fsqLogin(fsqToken)
+        .then(accept)
+        .catch((err) => {
+          console.warn('[FSQ] Échec de la connexion via fsq_token, repli sur session locale :', err);
+          return refreshSession().then((res) => res && setUser(res.user));
+        })
+        .finally(() => setLoading(false));
+      return () => setSessionLostHandler(null);
+    }
+
     refreshSession()
       .then((res) => res && setUser(res.user))
       .finally(() => setLoading(false));
     return () => setSessionLostHandler(null);
-  }, []);
+  }, [accept]);
 
   const value = useMemo<AuthState>(
     () => ({
