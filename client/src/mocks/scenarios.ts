@@ -15,6 +15,8 @@ export const SCENARIOS = [
   { id: 'end-summary-404', screen: 'Fin de partie', label: 'Bilan introuvable (404)' },
   { id: 'leaderboard-500', screen: 'Classement', label: 'Classement indisponible (500)' },
   { id: 'admin-save-400', screen: 'Back-office', label: 'Enregistrement refusé (400)' },
+  { id: 'hub-link-invalid', screen: 'Hub (menu)', label: 'Jeton du hub refusé (400)' },
+  { id: 'hub-down', screen: 'Hub (menu, fin)', label: 'Hub indisponible (502, score non envoyé)' },
   { id: 'offline', screen: 'Tous', label: 'Réseau coupé (aucune réponse)' },
 ] as const satisfies readonly Scenario[];
 

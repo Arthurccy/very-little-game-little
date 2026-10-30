@@ -8,6 +8,7 @@ import {
   type ThemeDTO,
 } from '@fps/shared';
 import { useAuth } from '../auth/AuthContext';
+import { HubBadge } from '../hub/HubBadge';
 
 interface Props {
   themes: ThemeDTO[];
@@ -32,6 +33,7 @@ export function MenuScreen({ themes, starting, error, onStart, onLeaderboard, on
         </button>
       </header>
 
+      <HubBadge />
       <div className="menu-actions">
         <button
           type="button"

@@ -2,6 +2,8 @@ import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { AuthProvider } from './auth/AuthContext';
+import { HubProvider } from './hub/HubContext';
+import { captureLaunchToken } from './hub/launch';
 import './styles.css';
 
 /**
@@ -15,11 +17,16 @@ async function mockTools(): Promise<ReactNode> {
   return <MockPanel />;
 }
 
+// Jeton de lancement du hub : lu et retiré de l'URL avant tout rendu.
+captureLaunchToken();
+
 void mockTools().then((panel) => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <AuthProvider>
-        <App />
+        <HubProvider>
+          <App />
+        </HubProvider>
       </AuthProvider>
       {panel}
     </StrictMode>,

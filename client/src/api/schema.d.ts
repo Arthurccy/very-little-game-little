@@ -72,6 +72,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/hub/link': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Associer le joueur du hub à la session (le back vérifie le jeton via GET /api/v1/me) */
+    post: operations['linkHub'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/hub/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Joueur du hub associé à la session courante */
+    get: operations['getHubPlayer'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/themes': {
     parameters: {
       query?: never;
@@ -433,6 +467,8 @@ export interface components {
       session: components['schemas']['SessionState'];
     };
     SessionSummary: {
+      /** @description Envoi du score au hub par notre back (absent si le back ne relaie pas encore le hub). */
+      hub?: components['schemas']['HubScore'];
       session: components['schemas']['SessionState'];
       cleared: number;
       failed: number;
@@ -500,6 +536,22 @@ export interface components {
       isActive: boolean;
       answers: components['schemas']['AdminAnswer'][];
     };
+    HubLinkRequest: {
+      /** @description Le `fsq_token` lu dans l'URL de lancement. */
+      fsqToken: string;
+    };
+    HubLink: {
+      player: components['schemas']['Player'];
+    };
+    HubScore: {
+      /**
+       * @description SENT : score accepté par le hub (POST /api/v1/scores). NOT_LINKED : partie lancée hors du hub.
+       *     NOT_RANKED : entraînement ou abandon, rien n'est envoyé. FAILED : le hub a refusé ou n'a pas répondu.
+       * @enum {string}
+       */
+      status: 'SENT' | 'NOT_LINKED' | 'NOT_RANKED' | 'FAILED';
+      result: components['schemas']['ScoreResponse'] | null;
+    };
     ApiError: {
       error: {
         /** @enum {string} */
@@ -507,6 +559,17 @@ export interface components {
         message: string;
         details?: unknown;
       };
+    };
+    Player: {
+      /** @description Identifiant stable du joueur */
+      playerId: string;
+      pseudo: string;
+      /** @description Niveau du joueur sur la plateforme */
+      level: number;
+    };
+    ScoreResponse: {
+      accepted: boolean;
+      xpGained: number;
     };
   };
   responses: {
@@ -667,6 +730,71 @@ export interface operations {
         content?: never;
       };
       403: components['responses']['Forbidden'];
+    };
+  };
+  linkHub: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['HubLinkRequest'];
+      };
+    };
+    responses: {
+      /** @description Jeton accepté par le hub ; le back le garde pour envoyer les scores. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HubLink'];
+        };
+      };
+      /** @description Jeton du hub absent, invalide, expiré ou émis pour un autre jeu (INVALID_TOKEN côté hub). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      /** @description Hub indisponible (réseau, 429 RATE_LIMITED ou 410 VERSION_GONE côté hub). */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  getHubPlayer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Joueur du hub associé. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HubLink'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      404: components['responses']['NotFound'];
     };
   };
   listThemes: {

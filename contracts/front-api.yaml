@@ -1,8 +1,13 @@
 openapi: 3.1.0
 info:
-  title: Pan ! Mauvaise réponse — API
+  title: Pan ! Mauvaise réponse — API consommée par le front
   version: 1.0.0
   description: |
+    Contrat dont le front génère ses types (`npm run generate:api`). Il décrit l'API telle
+    que le serveur l'implémente aujourd'hui, plus le relais du hub Full-Stack Quest
+    (tag `hub`), dont les schémas viennent de `integration-v1.yaml`. Le contrat cible de
+    l'équipe (`openapi.yaml`, v0.2, listes paginées) reste à rapprocher de celui-ci.
+
     Contrat de l'API du jeu. Le serveur est seul arbitre : aucune réponse publique
     ne porte `isCorrect` avant la clôture d'une question (sauf le back-office, réservé à ADMIN).
 
@@ -14,6 +19,12 @@ servers:
 
 tags:
   - name: auth
+  - name: hub
+    description: |
+      Relais vers le hub Full-Stack Quest (contrat de l'intervenant : contracts/integration-v1.yaml).
+      Le front lit `fsq_token` dans l'URL de lancement et le transmet UNIQUEMENT à ces routes.
+      Seul notre back appelle le hub (`GET /api/v1/me`, `POST /api/v1/scores`) ;
+      la clé `X-Game-Key` ne quitte jamais le serveur.
   - name: jeu
   - name: classement
   - name: admin
@@ -81,6 +92,50 @@ paths:
       responses:
         '204': { description: Déconnecté. }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+  /hub/link:
+    post:
+      tags: [hub]
+      summary: Associer le joueur du hub à la session (le back vérifie le jeton via GET /api/v1/me)
+      operationId: linkHub
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HubLinkRequest' }
+      responses:
+        '200':
+          description: Jeton accepté par le hub ; le back le garde pour envoyer les scores.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HubLink' }
+        '400':
+          description: Jeton du hub absent, invalide, expiré ou émis pour un autre jeu (INVALID_TOKEN côté hub).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '502':
+          description: Hub indisponible (réseau, 429 RATE_LIMITED ou 410 VERSION_GONE côté hub).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /hub/me:
+    get:
+      tags: [hub]
+      summary: Joueur du hub associé à la session courante
+      operationId: getHubPlayer
+      security: [{ bearer: [] }]
+      responses:
+        '200':
+          description: Joueur du hub associé.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HubLink' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /themes:
     get:
@@ -599,6 +654,9 @@ components:
       type: object
       required: [session, cleared, failed, bestCombo, startedAt, endedAt]
       properties:
+        hub:
+          $ref: '#/components/schemas/HubScore'
+          description: Envoi du score au hub par notre back (absent si le back ne relaie pas encore le hub).
         session: { $ref: '#/components/schemas/SessionState' }
         cleared: { type: integer }
         failed: { type: integer }
@@ -683,6 +741,34 @@ components:
         answers:
           type: array
           items: { $ref: '#/components/schemas/AdminAnswer' }
+
+    HubLinkRequest:
+      type: object
+      required: [fsqToken]
+      additionalProperties: false
+      properties:
+        fsqToken: { type: string, minLength: 1, description: Le `fsq_token` lu dans l'URL de lancement. }
+
+    HubLink:
+      type: object
+      required: [player]
+      properties:
+        player: { $ref: './integration-v1.yaml#/components/schemas/Player' }
+
+    HubScore:
+      type: object
+      required: [status, result]
+      properties:
+        status:
+          type: string
+          enum: [SENT, NOT_LINKED, NOT_RANKED, FAILED]
+          description: |
+            SENT : score accepté par le hub (POST /api/v1/scores). NOT_LINKED : partie lancée hors du hub.
+            NOT_RANKED : entraînement ou abandon, rien n'est envoyé. FAILED : le hub a refusé ou n'a pas répondu.
+        result:
+          oneOf:
+            - { $ref: './integration-v1.yaml#/components/schemas/ScoreResponse' }
+            - { type: 'null' }
 
     ApiError:
       type: object

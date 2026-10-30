@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { SessionStateDTO, SessionSummaryDTO } from '@fps/shared';
+import type { SessionStateDTO } from '@fps/shared';
+import type { HubScore, SessionSummary } from '../api/types';
 import { gameApi } from '../api/endpoints';
 
 interface Props {
@@ -17,7 +18,7 @@ const TITLES: Record<SessionStateDTO['status'], string> = {
 };
 
 export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
-  const [summary, setSummary] = useState<SessionSummaryDTO | null>(null);
+  const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
           <dd>{final.hp}</dd>
         </div>
       </dl>
+      {summary?.hub && <HubResult hub={summary.hub} />}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -74,4 +76,25 @@ export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
       </div>
     </main>
   );
+}
+
+/** Résultat de l'envoi du score au hub Full-Stack Quest (fait par notre back). */
+function HubResult({ hub }: { hub: HubScore }) {
+  if (hub.status === 'SENT' && hub.result) {
+    return (
+      <p className="hub-badge hub-badge--ok">
+        {hub.result.xpGained > 0
+          ? `Score envoyé à Full-Stack Quest : +${hub.result.xpGained} XP`
+          : 'Score envoyé à Full-Stack Quest (sans XP : bac à sable ou niveau déjà validé aujourd’hui)'}
+      </p>
+    );
+  }
+  if (hub.status === 'FAILED') {
+    return (
+      <p className="hub-badge hub-badge--error" role="alert">
+        Le score n’a pas pu être envoyé à Full-Stack Quest.
+      </p>
+    );
+  }
+  return null;
 }

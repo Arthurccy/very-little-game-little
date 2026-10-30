@@ -1,6 +1,6 @@
 /**
  * Vérification à la compilation : les types générés du contrat doivent être identiques
- * aux types de `@fps/shared` utilisés par les écrans. Si le contrat ou le code changent
+ * aux types de `@fps/shared` utilisés par les écrans, et le relais du hub aux schémas du hub. Si le contrat ou le code changent
  * sans l'autre, `npm run typecheck` échoue ici en nommant le type qui diverge.
  */
 import type * as Dto from '@fps/shared';
@@ -26,24 +26,11 @@ export type ContractMatchesShared = [
   Same<Api.QuestionStat, Dto.QuestionStatDTO>,
   Same<Api.AdminQuestion, Dto.AdminQuestionDTO>,
   Same<Api.AdminQuestionInput, Dto.AdminQuestionInput>,
+  // Le relais du back expose exactement les schémas du hub (contracts/integration-v1.yaml).
+  Same<Api.HubLink['player'], Api.HubPlayer>,
+  Same<NonNullable<Api.HubScore['result']>, Api.HubScoreResponse>,
 ];
 
-// Chaque position doit valoir `true` : une divergence casse cette affectation.
-export const contractMatchesShared: ContractMatchesShared = [
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-  true,
-];
+/** N'accepte qu'un tuple de `true` : une seule divergence fait échouer la compilation ici. */
+type AllTrue<T extends readonly true[]> = T;
+export type ContractCheck = AllTrue<ContractMatchesShared>;

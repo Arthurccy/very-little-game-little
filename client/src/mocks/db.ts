@@ -20,11 +20,15 @@ import {
   comboMultiplier,
   questionPoints,
 } from '@fps/shared';
+import type { components as HubComponents } from '../api/hub-schema';
 import type {
   AdminQuestion,
   AdminQuestionInput,
   CreateSessionResponse,
   GameMode,
+  HubLink,
+  HubPlayer,
+  HubScore,
   LeaderboardEntry,
   PublicQuestion,
   PublicUser,
@@ -36,6 +40,7 @@ import type {
   Theme,
 } from '../api/types';
 import fixtures from './fixtures.json';
+import { activeScenario } from './scenarios';
 
 // --- Erreurs ------------------------------------------------------------
 
@@ -99,6 +104,8 @@ interface MockSession {
   startedAt: number;
   endedAt: number | null;
   questions: MockSessionQuestion[];
+  /** Résultat de l'envoi du score au hub, fixé à la fin de la partie. */
+  hub: HubScore | null;
 }
 
 const sessions = new Map<string, MockSession>();
@@ -349,6 +356,7 @@ export const game = {
       pausesUsed: 0,
       startedAt: now,
       endedAt: null,
+      hub: null,
       questions: series.map(({ question, zone }, position) => ({
         id: newId('sq'),
         question,
@@ -394,6 +402,7 @@ export const game = {
       bestCombo,
       startedAt: iso(s.startedAt),
       endedAt: s.endedAt === null ? null : iso(s.endedAt),
+      hub: s.hub ?? { status: 'NOT_RANKED', result: null },
     };
   },
 
@@ -516,9 +525,11 @@ function closeQuestion(
   if (s.hp <= 0) {
     s.status = 'LOST';
     s.endedAt = now;
+    s.hub = hub.sendScore(s);
   } else if (isLast) {
     s.status = 'WON';
     s.endedAt = now;
+    s.hub = hub.sendScore(s);
   } else {
     s.currentIndex++;
     const next = s.questions[s.currentIndex]!;
@@ -544,6 +555,122 @@ function closeQuestion(
     serverNow: iso(now),
   };
 }
+
+// --- Hub Full-Stack Quest (relais simulé de notre back) -----------------
+// Contrat : contracts/integration-v1.yaml. Ici, c'est NOTRE back simulé qui « appelle » le hub ;
+// le navigateur ne fait que transmettre le jeton à /hub/link.
+
+type HubScoreRequest = HubComponents['schemas']['ScoreRequest'];
+
+/** Identifiant de notre jeu sur le hub (celui du manifeste). */
+export const GAME_ID = 'pan-mauvaise-reponse';
+/** scoreMax déclaré au hub : l'XP est proportionnelle à score / scoreMax. */
+const SCORE_MAX = 30_000;
+const XP_MAX = 150;
+const HUB_LINKS_KEY = 'msw:hub-links';
+
+interface HubTokenClaims {
+  sub: string;
+  pseudo: string;
+  level: number;
+  game: string;
+  exp: number;
+  sandbox?: boolean;
+}
+
+const base64url = (text: string) =>
+  btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+function decodeBase64url(part: string): string {
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+  const bytes = Uint8Array.from(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)), (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+/** Fabrique un jeton de lancement de démonstration (non signé : le vrai est signé par le hub). */
+export function makeLaunchToken(opts: { pseudo: string; level: number; expired?: boolean; sandbox?: boolean }): string {
+  const claims: HubTokenClaims = {
+    sub: 'p_42',
+    pseudo: opts.pseudo,
+    level: opts.level,
+    game: GAME_ID,
+    exp: Math.floor(Date.now() / 1000) + (opts.expired ? -60 : 2 * 3600),
+    sandbox: opts.sandbox ?? false,
+  };
+  return `${base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${base64url(JSON.stringify(claims))}.signature-de-demo`;
+}
+
+interface StoredHubLink {
+  player: HubPlayer;
+  sandbox: boolean;
+}
+
+function readHubLinks(): Record<string, StoredHubLink> {
+  try {
+    return JSON.parse(localStorage.getItem(HUB_LINKS_KEY) ?? '{}') as Record<string, StoredHubLink>;
+  } catch {
+    return {};
+  }
+}
+
+function writeHubLinks(links: Record<string, StoredHubLink>): void {
+  try {
+    localStorage.setItem(HUB_LINKS_KEY, JSON.stringify(links));
+  } catch {
+    // stockage indisponible : le lien au hub ne survivra pas au rechargement
+  }
+}
+
+export const hub = {
+  /** POST /hub/link : notre back vérifie le jeton auprès du hub (GET /api/v1/me). */
+  link(userId: string, fsqToken: string): HubLink {
+    console.info('[MSW] notre back → hub : GET /api/v1/me (Authorization: Bearer <fsq_token>)');
+    if (activeScenario() === 'hub-down') {
+      throw new MockApiError(502, 'INTERNAL', 'Hub Full-Stack Quest indisponible');
+    }
+    let claims: HubTokenClaims;
+    try {
+      const [, payload] = fsqToken.split('.');
+      claims = JSON.parse(decodeBase64url(payload ?? '')) as HubTokenClaims;
+    } catch {
+      throw new MockApiError(400, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré');
+    }
+    const valid =
+      /^p_[0-9]+$/.test(claims.sub) &&
+      claims.game === GAME_ID &&
+      typeof claims.exp === 'number' &&
+      claims.exp * 1000 > Date.now();
+    if (!valid) throw new MockApiError(400, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré');
+    const player: HubPlayer = { playerId: claims.sub, pseudo: claims.pseudo, level: claims.level };
+    writeHubLinks({ ...readHubLinks(), [userId]: { player, sandbox: claims.sandbox === true } });
+    return { player };
+  },
+  /** GET /hub/me */
+  me(userId: string): HubLink {
+    const link = readHubLinks()[userId];
+    if (!link) throw new MockApiError(404, 'NOT_FOUND', 'Aucun joueur du hub associé');
+    return { player: link.player };
+  },
+  /** Fin de partie : notre back envoie le score au hub (POST /api/v1/scores, avec X-Game-Key). */
+  sendScore(s: MockSession): HubScore {
+    if (s.mode === 'TRAINING') return { status: 'NOT_RANKED', result: null };
+    const link = readHubLinks()[s.userId];
+    if (!link) return { status: 'NOT_LINKED', result: null };
+    const request: HubScoreRequest = {
+      gameId: GAME_ID,
+      level: 1,
+      score: Math.min(s.score, SCORE_MAX),
+      durationMs: (s.endedAt ?? Date.now()) - s.startedAt,
+    };
+    console.info('[MSW] notre back → hub : POST /api/v1/scores (X-Game-Key côté serveur)', request);
+    if (activeScenario() === 'hub-down') return { status: 'FAILED', result: null };
+    const xpGained = link.sandbox ? 0 : Math.round((XP_MAX * request.score) / SCORE_MAX);
+    return { status: 'SENT', result: { accepted: true, xpGained } };
+  },
+};
 
 // --- Back-office --------------------------------------------------------
 

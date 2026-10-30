@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { DEMO_ACCOUNTS } from './db';
+import { DEMO_ACCOUNTS, makeLaunchToken } from './db';
 import { activeScenario, SCENARIOS, setActiveScenario, type ScenarioId } from './scenarios';
+
+/** Rouvre le jeu comme le hub : `/?fsq_token=<JWT>`. */
+function launch(opts: Parameters<typeof makeLaunchToken>[0]): void {
+  window.location.assign(`/?fsq_token=${encodeURIComponent(makeLaunchToken(opts))}`);
+}
 
 /**
  * Panneau du mode maquette : choisir un scénario d'erreur (un par écran) et rappeler les
@@ -55,6 +60,29 @@ export function MockPanel() {
             </span>
           </label>
         ))}
+      </fieldset>
+      <fieldset>
+        <legend>Lancer depuis le hub Full-Stack Quest</legend>
+        <p className="muted">Ouvre le jeu comme le ferait le hub : /?fsq_token=…</p>
+        <div className="mock-actions">
+          <button type="button" className="btn btn--small" onClick={() => launch({ pseudo: 'Neo', level: 7 })}>
+            Jeton valide
+          </button>
+          <button
+            type="button"
+            className="btn btn--small"
+            onClick={() => launch({ pseudo: 'Neo', level: 7, sandbox: true })}
+          >
+            Bac à sable
+          </button>
+          <button
+            type="button"
+            className="btn btn--small"
+            onClick={() => launch({ pseudo: 'Neo', level: 7, expired: true })}
+          >
+            Jeton expiré
+          </button>
+        </div>
       </fieldset>
       <p className="muted">
         Comptes (mot de passe « {DEMO_ACCOUNTS[0].password} ») : {DEMO_ACCOUNTS.map((a) => a.email).join(' · ')}

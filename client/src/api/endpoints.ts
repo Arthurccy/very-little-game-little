@@ -1,4 +1,4 @@
-// Types générés du contrat OpenAPI (contract/openapi.yaml).
+// Types générés du contrat OpenAPI (contracts/front-api.yaml).
 import type {
   AdminQuestion,
   AdminQuestionInput,
@@ -6,6 +6,8 @@ import type {
   CreateSessionResponse,
   EndSessionResponse,
   GameMode,
+  HubLink,
+  HubLinkRequest,
   LeaderboardEntry,
   LoginRequest,
   QuestionKind,
@@ -17,6 +19,15 @@ import type {
   Theme,
 } from './types';
 import { api, del, post, put } from './client';
+
+/**
+ * Relais du hub Full-Stack Quest par NOTRE back : le front ne parle jamais au hub
+ * directement et n'a jamais la clé X-Game-Key (contracts/integration-v1.yaml).
+ */
+export const hubApi = {
+  link: (body: HubLinkRequest) => post<HubLink>('/hub/link', body),
+  me: () => api<HubLink>('/hub/me'),
+};
 
 export const authApi = {
   register: (body: RegisterRequest) => post<AuthResponse>('/auth/register', body),

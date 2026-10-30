@@ -1,6 +1,6 @@
 /**
  * Handlers Mock Service Worker de tous les appels de l'application, typés par le contrat
- * OpenAPI (`../api/types`, généré depuis `contract/openapi.yaml`). Le corps de chaque
+ * OpenAPI (`../api/types`, généré depuis `contracts/front-api.yaml`). Le corps de chaque
  * réponse doit respecter le contrat, sinon la compilation échoue.
  */
 import { delay, http, HttpResponse, type DefaultBodyType, type HttpResponseResolver } from 'msw';
@@ -13,6 +13,8 @@ import type {
   CreateSessionRequest,
   CreateSessionResponse,
   EndSessionResponse,
+  HubLink,
+  HubLinkRequest,
   LeaderboardEntry,
   LoginRequest,
   QuestionStat,
@@ -23,7 +25,7 @@ import type {
   ShotResponse,
   Theme,
 } from '../api/types';
-import { admin, auth, game, leaderboard, listThemes, MockApiError } from './db';
+import { admin, auth, game, hub, leaderboard, listThemes, MockApiError } from './db';
 import { activeScenario, type ScenarioId } from './scenarios';
 
 const url = (path: string) => `${API_URL}${path}`;
@@ -100,6 +102,23 @@ export const handlers = [
       auth.logout();
       return new HttpResponse(null, { status: 204 });
     }),
+  ),
+
+  // --- Hub Full-Stack Quest (relais par notre back) ------------------------
+  http.post(
+    url('/hub/link'),
+    route(
+      'hub-link-invalid',
+      () => errorResponse(400, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré'),
+      async ({ request }) => {
+        const { fsqToken } = await body<HubLinkRequest>(request);
+        return json<HubLink>(hub.link(userId(request), fsqToken));
+      },
+    ),
+  ),
+  http.get(
+    url('/hub/me'),
+    route(null, noScenario, ({ request }) => json<HubLink>(hub.me(userId(request)))),
   ),
 
   // --- Menu ---------------------------------------------------------------
