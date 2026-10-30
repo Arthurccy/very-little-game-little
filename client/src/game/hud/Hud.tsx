@@ -1,4 +1,5 @@
-import { BOSS_QUESTION_COUNT, BOSS_ZONE, STARTING_HP, type BonusType, type ThemeDTO } from '@fps/shared';
+import { BOSS_QUESTION_COUNT, BOSS_ZONE, STARTING_HP } from '@fps/shared';
+import type { BonusType, Theme } from '../../api/types';
 import type { GameController } from '../useGame';
 
 const BONUS_LABELS: Record<BonusType, string> = {
@@ -9,9 +10,9 @@ const BONUS_LABELS: Record<BonusType, string> = {
 
 interface Props {
   game: GameController;
-  theme: ThemeDTO | undefined;
+  theme: Theme | undefined;
   /** Thème de la question suivante, pour annoncer un changement de zone. */
-  nextTheme: ThemeDTO | undefined;
+  nextTheme: Theme | undefined;
   locked: boolean;
   muted: boolean;
   musicOn: boolean;

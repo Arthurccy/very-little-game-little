@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+  '/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Vérifier que l'API répond */
+    get: operations['getHealth'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/auth/register': {
     parameters: {
       query?: never;
@@ -13,7 +30,11 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Créer un compte joueur */
+    /**
+     * Créer un compte joueur
+     * @description Crée un utilisateur de rôle `PLAYER` et ouvre une session.
+     *     Limité à 50 requêtes par 15 minutes et par adresse IP.
+     */
     post: operations['register'];
     delete?: never;
     options?: never;
@@ -30,7 +51,11 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Se connecter */
+    /**
+     * Ouvrir une session
+     * @description Même durée de traitement si l'email est inconnu : la réponse ne révèle pas
+     *     l'existence du compte. Limité à 50 requêtes par 15 minutes et par adresse IP.
+     */
     post: operations['login'];
     delete?: never;
     options?: never;
@@ -47,7 +72,13 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Renouveler la session à partir du cookie refresh (rotation) */
+    /**
+     * Renouveler le jeton d'accès
+     * @description Lit le cookie `refresh_token`, le fait tourner (l'ancien est révoqué) et renvoie
+     *     un nouvel access token plus un nouveau cookie. Réutiliser un refresh déjà remplacé
+     *     révoque toute la chaîne. Si l'`Origin` est présente, elle doit être celle du client.
+     *     Un refresh invalide efface le cookie.
+     */
     post: operations['refresh'];
     delete?: never;
     options?: never;
@@ -64,42 +95,13 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Se déconnecter (révoque le refresh token) */
+    /**
+     * Révoquer le refresh et effacer le cookie
+     * @description Révoque le refresh présenté par le cookie, puis l'efface. Sans cookie valide,
+     *     le cookie est tout de même effacé et la réponse reste 204.
+     *     Si l'`Origin` est présente, elle doit être celle du client.
+     */
     post: operations['logout'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/hub/link': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Associer le joueur du hub à la session (le back vérifie le jeton via GET /api/v1/me) */
-    post: operations['linkHub'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/hub/me': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Joueur du hub associé à la session courante */
-    get: operations['getHubPlayer'];
-    put?: never;
-    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -113,8 +115,33 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Thèmes dans l'ordre du parcours */
+    /**
+     * Lister les thèmes
+     * @description Triés par `order` croissant, puis paginés. Six thèmes dans le seed.
+     */
     get: operations['listThemes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/leaderboard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Classement des meilleures parties normales
+     * @description Une entrée par joueur : sa meilleure partie `NORMAL` terminée `WON` ou `LOST`.
+     *     Les abandons et le mode entraînement sont exclus. Tri : score décroissant,
+     *     puis fin de partie la plus ancienne.
+     */
+    get: operations['getLeaderboard'];
     put?: never;
     post?: never;
     delete?: never;
@@ -132,7 +159,12 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Créer une partie (tire la série, active la première question) */
+    /**
+     * Créer une partie
+     * @description Tire et persiste la série (4 questions standard par thème, puis 6 boss),
+     *     mélange les réponses, active la première question et abandonne toute partie
+     *     encore `IN_PROGRESS` du même joueur. `mode` absent vaut `NORMAL`.
+     */
     post: operations['createSession'];
     delete?: never;
     options?: never;
@@ -147,7 +179,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** État de la partie et question en cours (reprise) */
+    /**
+     * Reprendre une partie
+     * @description État courant et question active. `question` est `null` si aucune question
+     *     n'est `ACTIVE` (partie terminée).
+     */
     get: operations['getSession'];
     put?: never;
     post?: never;
@@ -164,7 +200,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Bilan de la partie */
+    /** Bilan d'une partie */
     get: operations['getSessionSummary'];
     put?: never;
     post?: never;
@@ -183,7 +219,23 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Tirer sur une réponse */
+    /**
+     * Tirer sur une réponse
+     * @description `answerId` doit appartenir à la question active et ne pas être déjà éliminée.
+     *     Si l'horloge serveur a dépassé `deadlineAt`, le tir est traité comme un timeout
+     *     (`outcome` = `TIMEOUT`) et la question est ratée.
+     *
+     *     Issues :
+     *
+     *     - `ELIMINATED_WRONG` : la cible tombe, la question continue. Un bonus peut tomber.
+     *       Si c'était la dernière mauvaise réponse, la question est réussie et close.
+     *     - `HIT_CORRECT` : −25 PV (0 en entraînement), question ratée, combo remis à 0.
+     *     - `TIMEOUT` : −20 PV (0 en entraînement), question ratée, combo remis à 0.
+     *
+     *     Question close et partie encore en cours : `nextQuestion` est la suivante,
+     *     avec un `startedAt` 6 s plus tard. Dernière question close avec des PV :
+     *     `session.status` = `WON`. PV à 0 : `LOST`. Les écritures d'un tir sont atomiques.
+     */
     post: operations['shoot'];
     delete?: never;
     options?: never;
@@ -200,8 +252,12 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Clore la question si l'échéance serveur est passée */
-    post: operations['reportTimeout'];
+    /**
+     * Clore la question dont le chrono est échu
+     * @description Refusé tant que `serverNow` < `deadlineAt`. Même effet qu'un tir arrivé après
+     *     l'échéance : −20 PV (0 en entraînement), question `FAILED`, combo à 0.
+     */
+    post: operations['timeoutQuestion'];
     delete?: never;
     options?: never;
     head?: never;
@@ -217,7 +273,11 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Mettre la partie en pause (3 pauses de 30 s max) */
+    /**
+     * Mettre la partie en pause
+     * @description Au plus 3 pauses. Le serveur gèle le chrono. La pause expire toute seule au bout
+     *     de 30 s, à la prochaine requête. Le client masque la question pendant ce temps.
+     */
     post: operations['pauseSession'];
     delete?: never;
     options?: never;
@@ -234,7 +294,12 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Reprendre la partie (horaires décalés de la durée de la pause) */
+    /**
+     * Reprendre la partie
+     * @description Décale `startedAt` et `deadlineAt` de la question en cours (ou sur le point de
+     *     démarrer) de la durée réelle de la pause, plafonnée à 30 s. Le temps restant
+     *     et le bonus de vitesse sont préservés.
+     */
     post: operations['resumeSession'];
     delete?: never;
     options?: never;
@@ -251,25 +316,12 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Abandonner la partie */
+    /**
+     * Abandonner la partie
+     * @description Passe la partie en `ABANDONED`. Le score est conservé mais la partie ne compte
+     *     pas au classement.
+     */
     post: operations['endSession'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/leaderboard': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Meilleure partie normale terminée de chaque joueur */
-    get: operations['getLeaderboard'];
-    put?: never;
-    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -283,10 +335,17 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Lister les questions (avec isCorrect) */
+    /**
+     * Lister les questions
+     * @description Inclut les questions inactives par défaut. La liste est paginée.
+     */
     get: operations['listAdminQuestions'];
     put?: never;
-    /** Créer une question */
+    /**
+     * Créer une question
+     * @description Exactement une bonne réponse, 3 à 6 réponses, textes uniques sans tenir compte
+     *     de la casse. `isActive` absent vaut vrai.
+     */
     post: operations['createAdminQuestion'];
     delete?: never;
     options?: never;
@@ -299,16 +358,25 @@ export interface paths {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        /** @description Identifiant de la question (catalogue, pas la question de partie). */
+        id: components['parameters']['QuestionId'];
       };
       cookie?: never;
     };
     /** Lire une question */
     get: operations['getAdminQuestion'];
-    /** Modifier une question (réponses gardées par id) */
+    /**
+     * Remplacer une question
+     * @description Remplace l'énoncé et le jeu de réponses. Une réponse du corps qui porte un `id`
+     *     doit déjà appartenir à cette question. Les réponses omises sont retirées.
+     */
     put: operations['updateAdminQuestion'];
     post?: never;
-    /** Désactiver une question (suppression douce) */
+    /**
+     * Désactiver une question
+     * @description Suppression douce : `isActive` passe à `false`. La question déjà jouée reste en base.
+     *     Elle ne sera plus tirée dans les nouvelles parties.
+     */
     delete: operations['deactivateAdminQuestion'];
     options?: never;
     head?: never;
@@ -322,7 +390,12 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Taux de réussite et temps moyen par question */
+    /**
+     * Statistiques par question
+     * @description Une ligne par question, y compris celles sans tentative. `successRate` et
+     *     `averageElapsedMs` sont `null` sans tentative close. Le temps moyen est mesuré
+     *     entre `startedAt` et `resolvedAt` côté serveur. La liste est paginée.
+     */
     get: operations['getQuestionStats'];
     put?: never;
     post?: never;
@@ -336,6 +409,29 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /**
+     * @description Identifiant opaque (cuid).
+     * @example clxyz123
+     */
+    Id: string;
+    Health: {
+      /** @constant */
+      status: 'ok';
+    };
+    ApiError: {
+      error: {
+        /** @enum {string} */
+        code: 'VALIDATION' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'RATE_LIMITED' | 'INTERNAL';
+        message: string;
+        /** @description Présent sur les 400 de validation. Liste `{ path, message }`. */
+        details?: {
+          /** @example answers */
+          path: string;
+          /** @example Exactement une bonne réponse */
+          message: string;
+        }[];
+      };
+    };
     /** @enum {string} */
     Role: 'PLAYER' | 'ADMIN';
     /** @enum {string} */
@@ -349,11 +445,12 @@ export interface components {
     /** @enum {string} */
     BonusType: 'SLOW_TIME' | 'REMOVE_WRONG' | 'HEAL';
     PublicUser: {
-      id: string;
+      id: components['schemas']['Id'];
       pseudo: string;
       role: components['schemas']['Role'];
     };
     RegisterRequest: {
+      /** @description Lettres (tous alphabets), chiffres, `_` et `-`. Espaces retirés avant contrôle. */
       pseudo: string;
       /** Format: email */
       email: string;
@@ -364,111 +461,134 @@ export interface components {
       email: string;
       password: string;
     };
-    /** @description Le refresh token voyage uniquement en cookie httpOnly, jamais dans ce JSON. */
     AuthResponse: {
+      /** @description JWT d'accès. À garder en mémoire côté client, jamais dans un stockage durable. */
       accessToken: string;
       user: components['schemas']['PublicUser'];
     };
     Theme: {
-      id: string;
+      id: components['schemas']['Id'];
+      /** @example http */
       slug: string;
+      /** @example HTTP */
       name: string;
-      /** @description Identifiant du décor 3D de la zone. */
+      /** @description Identifiant du décor 3D côté client. */
       scenery: string;
+      /** @description Ordre d'apparition des zones. Unique. */
       order: number;
       intro: string;
     };
-    /** @description Une cible à l'écran, sans le booléen isCorrect. */
+    /** @description Cible affichée. Pas de booléen de correction. */
     PublicAnswer: {
-      id: string;
+      id: components['schemas']['Id'];
       text: string;
     };
+    /**
+     * @description Question de partie (`id` est celui de la `SessionQuestion`, pas du catalogue).
+     *     `startedAt` peut être dans le futur.
+     */
     PublicQuestion: {
-      /** @description Identifiant de la question dans la partie. */
-      id: string;
+      id: components['schemas']['Id'];
+      /** @description Index dans la série, à partir de 0. */
       position: number;
+      /** @example 30 */
       total: number;
-      /** @description 1 à 6 pour les thèmes */
+      /** @description 1 à 6 pour les thèmes, 7 pour le boss. */
       zone: number;
       kind: components['schemas']['QuestionKind'];
       themeSlug: string;
       statement: string;
+      /** @description Ordre mélangé par le serveur et persisté pour cette partie. */
       answers: components['schemas']['PublicAnswer'][];
-      eliminatedAnswerIds: string[];
+      eliminatedAnswerIds: components['schemas']['Id'][];
+      /** @description Durée impartie, éventuellement rallongée par `SLOW_TIME`. */
       timeLimitMs: number;
-      /**
-       * Format: date-time
-       * @description Peut être dans le futur (délai avant la question).
-       */
+      /** Format: date-time */
       startedAt: string;
       /** Format: date-time */
       deadlineAt: string;
     };
     SessionState: {
-      id: string;
+      id: components['schemas']['Id'];
       mode: components['schemas']['GameMode'];
       status: components['schemas']['SessionStatus'];
       score: number;
       hp: number;
+      /** @description Réussites d'affilée. Remis à 0 après un échec. */
       combo: number;
+      /** @description min(4, 1 + combo × 0,25), calculé avant la réussite en cours. */
       multiplier: number;
       currentIndex: number;
+      /** @example 30 */
       total: number;
       paused: boolean;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description Échéance de la pause en cours, sinon `null`.
+       */
       pauseEndsAt: string | null;
       pausesLeft: number;
     };
     CreateSessionRequest: {
+      /**
+       * @description Défaut `NORMAL` si le champ est absent.
+       * @default NORMAL
+       */
       mode: components['schemas']['GameMode'];
     };
     CreateSessionResponse: {
+      serverNow: components['schemas']['ServerNow'];
       session: components['schemas']['SessionState'];
       question: components['schemas']['PublicQuestion'];
-      /** Format: date-time */
-      serverNow: string;
     };
-    SessionDetailResponse: {
+    SessionDetail: {
+      serverNow: components['schemas']['ServerNow'];
       session: components['schemas']['SessionState'];
+      /** @description Question active, ou `null` si la partie n'en a plus. */
       question: components['schemas']['PublicQuestion'] | null;
-      /** Format: date-time */
-      serverNow: string;
     };
-    ShotRequest: {
-      answerId: string;
-    };
-    /** @description Révélé seulement une fois la question close. */
     QuestionReveal: {
-      correctAnswerId: string;
+      correctAnswerId: components['schemas']['Id'];
       explanation: string;
+      /** Format: uri */
       mdnUrl: string | null;
+      /** @description 0 si la question est ratée. */
       pointsAwarded: number;
     };
     BonusDrop: {
       type: components['schemas']['BonusType'];
-      /** @description REMOVE_WRONG — réponse retirée. */
-      removedAnswerId?: string;
-      /** @description SLOW_TIME — ms ajoutées ; HEAL — PV rendus. */
+      /** @description Présent pour `REMOVE_WRONG`. */
+      removedAnswerId?: components['schemas']['Id'];
+      /** @description Millisecondes ajoutées (`SLOW_TIME`) ou PV rendus (`HEAL`). */
       amount?: number;
     };
+    ShotRequest: {
+      answerId: components['schemas']['Id'];
+    };
+    /**
+     * Format: date-time
+     * @description Horloge serveur au moment de la réponse. Le client cale son chrono dessus.
+     */
+    ServerNow: string;
     ShotResponse: {
+      serverNow: components['schemas']['ServerNow'];
       outcome: components['schemas']['ShotOutcome'];
+      /** @description Temps écoulé depuis `startedAt`, mesuré par le serveur. */
       elapsedMs: number;
       session: components['schemas']['SessionState'];
       questionClosed: boolean;
+      /** @description Renseigné seulement si `questionClosed` est vrai. */
       reveal: components['schemas']['QuestionReveal'] | null;
       bonus: components['schemas']['BonusDrop'] | null;
+      /** @description Question encore ouverte, à jour (éliminations, échéance). `null` si elle est close. */
       question: components['schemas']['PublicQuestion'] | null;
+      /** @description Question suivante si la précédente est close et que la partie continue. */
       nextQuestion: components['schemas']['PublicQuestion'] | null;
-      /** Format: date-time */
-      serverNow: string;
     };
     EndSessionResponse: {
       session: components['schemas']['SessionState'];
     };
     SessionSummary: {
-      /** @description Envoi du score au hub par notre back (absent si le back ne relaie pas encore le hub). */
-      hub?: components['schemas']['HubScore'];
       session: components['schemas']['SessionState'];
       cleared: number;
       failed: number;
@@ -486,45 +606,64 @@ export interface components {
       endedAt: string;
     };
     QuestionStat: {
-      questionId: string;
+      questionId: components['schemas']['Id'];
       statement: string;
       themeSlug: string;
       kind: components['schemas']['QuestionKind'];
       isActive: boolean;
       attempts: number;
-      /** @description Entre 0 et 1 */
+      /** @description Part des tentatives closes réussies. `null` sans tentative. */
       successRate: number | null;
+      /** @description `null` sans tentative close. */
       averageElapsedMs: number | null;
     };
+    PageMeta: {
+      limit: number;
+      offset: number;
+      /** @description Nombre d'éléments qui correspondent au filtre, avant pagination. */
+      total: number;
+    };
+    ThemePage: components['schemas']['PageMeta'] & {
+      items: components['schemas']['Theme'][];
+    };
+    LeaderboardPage: components['schemas']['PageMeta'] & {
+      items: components['schemas']['LeaderboardEntry'][];
+    };
+    QuestionStatPage: components['schemas']['PageMeta'] & {
+      items: components['schemas']['QuestionStat'][];
+    };
+    AdminAnswer: {
+      id: components['schemas']['Id'];
+      text: string;
+      isCorrect: boolean;
+    };
     AdminAnswerInput: {
-      /** @description Présent pour modifier une réponse existante. */
-      id?: string;
+      /** @description Présent pour conserver une réponse existante lors d'un remplacement. */
+      id?: components['schemas']['Id'];
       text: string;
       isCorrect: boolean;
     };
     AdminQuestionInput: {
-      themeId: string;
+      themeId: components['schemas']['Id'];
       statement: string;
       explanation: string;
-      /** Format: uri */
+      /**
+       * Format: uri
+       * @default null
+       */
       mdnUrl: string | null;
       difficulty: number;
       kind: components['schemas']['QuestionKind'];
       timeLimitMs: number;
       basePoints: number;
       isActive?: boolean;
-      /** @description Exactement une bonne réponse, pas de doublon. */
+      /** @description Exactement une réponse `isCorrect`, textes distincts sans tenir compte de la casse. */
       answers: components['schemas']['AdminAnswerInput'][];
     };
-    AdminAnswer: {
-      id: string;
-      text: string;
-      isCorrect: boolean;
-    };
-    /** @description Réservé au rôle ADMIN — seul endroit où isCorrect est exposé. */
+    /** @description Seule ressource qui expose `isCorrect`. Réservée au rôle `ADMIN`. */
     AdminQuestion: {
-      id: string;
-      themeId: string;
+      id: components['schemas']['Id'];
+      themeId: components['schemas']['Id'];
       themeSlug: string;
       statement: string;
       explanation: string;
@@ -536,44 +675,37 @@ export interface components {
       isActive: boolean;
       answers: components['schemas']['AdminAnswer'][];
     };
-    HubLinkRequest: {
-      /** @description Le `fsq_token` lu dans l'URL de lancement. */
-      fsqToken: string;
-    };
-    HubLink: {
-      player: components['schemas']['Player'];
-    };
-    HubScore: {
-      /**
-       * @description SENT : score accepté par le hub (POST /api/v1/scores). NOT_LINKED : partie lancée hors du hub.
-       *     NOT_RANKED : entraînement ou abandon, rien n'est envoyé. FAILED : le hub a refusé ou n'a pas répondu.
-       * @enum {string}
-       */
-      status: 'SENT' | 'NOT_LINKED' | 'NOT_RANKED' | 'FAILED';
-      result: components['schemas']['ScoreResponse'] | null;
-    };
-    ApiError: {
-      error: {
-        /** @enum {string} */
-        code: 'VALIDATION' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'RATE_LIMITED' | 'INTERNAL';
-        message: string;
-        details?: unknown;
-      };
-    };
-    Player: {
-      /** @description Identifiant stable du joueur */
-      playerId: string;
-      pseudo: string;
-      /** @description Niveau du joueur sur la plateforme */
-      level: number;
-    };
-    ScoreResponse: {
-      accepted: boolean;
-      xpGained: number;
+    AdminQuestionPage: components['schemas']['PageMeta'] & {
+      items: components['schemas']['AdminQuestion'][];
     };
   };
   responses: {
-    /** @description Requête invalide (corps, paramètres ou JSON mal formé). */
+    /** @description Compte créé et session ouverte. */
+    AuthCreated: {
+      headers: {
+        'Cache-Control': components['headers']['CacheControlNoStore'];
+        'Set-Cookie': components['headers']['SetCookieRefresh'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['AuthResponse'];
+      };
+    };
+    /** @description Session ouverte ou renouvelée. Le cookie refresh est tourné. */
+    AuthOk: {
+      headers: {
+        'Cache-Control': components['headers']['CacheControlNoStore'];
+        'Set-Cookie': components['headers']['SetCookieRefresh'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['AuthResponse'];
+      };
+    };
+    /**
+     * @description Corps, query ou paramètre refusé (422). Une propriété inconnue est une erreur,
+     *     elle n'est pas ignorée. `details` liste les écarts.
+     */
     Validation: {
       headers: {
         [name: string]: unknown;
@@ -582,61 +714,215 @@ export interface components {
         'application/json': components['schemas']['ApiError'];
       };
     };
-    /** @description Jeton absent, invalide ou expiré ; identifiants incorrects. */
+    /** @description Jeton d'accès absent, mal formé ou expiré. */
     Unauthenticated: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "UNAUTHENTICATED",
+         *         "message": "Authentification requise"
+         *       }
+         *     }
+         */
         'application/json': components['schemas']['ApiError'];
       };
     };
-    /** @description Rôle insuffisant, partie d'un autre joueur ou origine refusée. */
-    Forbidden: {
+    /** @description Jeton valide, rôle différent de `ADMIN`. */
+    ForbiddenRole: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "FORBIDDEN",
+         *         "message": "Rôle insuffisant"
+         *       }
+         *     }
+         */
         'application/json': components['schemas']['ApiError'];
       };
     };
-    /** @description Ressource inconnue. */
-    NotFound: {
+    /** @description La partie appartient à un autre joueur. */
+    ForeignSession: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "FORBIDDEN",
+         *         "message": "Cette partie appartient à un autre joueur"
+         *       }
+         *     }
+         */
         'application/json': components['schemas']['ApiError'];
       };
     };
-    /** @description Conflit d'état (compte existant, partie close ou en pause, question pas commencée…). */
-    Conflict: {
+    /** @description L'en-tête `Origin` est présent et différent de l'origine du client. */
+    UntrustedOrigin: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "FORBIDDEN",
+         *         "message": "Origine non autorisée"
+         *       }
+         *     }
+         */
         'application/json': components['schemas']['ApiError'];
       };
     };
-    /** @description Trop de tentatives. */
+    /** @description Aucune partie avec cet identifiant. */
+    SessionNotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "NOT_FOUND",
+         *         "message": "Partie introuvable"
+         *       }
+         *     }
+         */
+        'application/json': components['schemas']['ApiError'];
+      };
+    };
+    /** @description Aucune question avec cet identifiant. */
+    QuestionNotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "NOT_FOUND",
+         *         "message": "Question introuvable"
+         *       }
+         *     }
+         */
+        'application/json': components['schemas']['ApiError'];
+      };
+    };
+    /** @description Corps supérieur à 32 Ko. */
+    PayloadTooLarge: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "VALIDATION",
+         *         "message": "Corps de requête trop volumineux"
+         *       }
+         *     }
+         */
+        'application/json': components['schemas']['ApiError'];
+      };
+    };
+    /** @description Plus de 50 tentatives en 15 minutes pour cette adresse IP. */
     RateLimited: {
       headers: {
         [name: string]: unknown;
       };
       content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "RATE_LIMITED",
+         *         "message": "Trop de tentatives, réessaie plus tard"
+         *       }
+         *     }
+         */
+        'application/json': components['schemas']['ApiError'];
+      };
+    };
+    /** @description Erreur non prévue. Le message est générique. */
+    Internal: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        /**
+         * @example {
+         *       "error": {
+         *         "code": "INTERNAL",
+         *         "message": "Erreur interne"
+         *       }
+         *     }
+         */
         'application/json': components['schemas']['ApiError'];
       };
     };
   };
   parameters: {
-    SessionId: string;
+    /** @description Identifiant de la partie. */
+    SessionId: components['schemas']['Id'];
+    /** @description Identifiant de la question (catalogue, pas la question de partie). */
+    QuestionId: components['schemas']['Id'];
+    /** @description Taille de la page, de 1 à 100. Défaut 20. */
+    PageLimit: number;
+    /** @description Nombre d'éléments à sauter. Défaut 0. */
+    PageOffset: number;
   };
   requestBodies: never;
-  headers: never;
+  headers: {
+    /** @description `no-store` */
+    CacheControlNoStore: string;
+    /**
+     * @description Pose `refresh_token`. Attributs : `HttpOnly`, `SameSite=Lax`, `Path=/auth`,
+     *     `Expires` aligné sur la durée du refresh, `Secure` en production.
+     */
+    SetCookieRefresh: string;
+  };
   pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  getHealth: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Processus joignable. */
+      200: {
+        headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Health'];
+        };
+      };
+      /** @description Une query string est présente. Ce point d'entrée n'accepte aucun paramètre. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      500: components['responses']['Internal'];
+    };
+  };
   register: {
     parameters: {
       query?: never;
@@ -650,18 +936,20 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Compte créé ; le refresh token est posé en cookie. */
-      201: {
+      201: components['responses']['AuthCreated'];
+      /** @description Email ou pseudo déjà utilisé. */
+      409: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['AuthResponse'];
+          'application/json': components['schemas']['ApiError'];
         };
       };
-      400: components['responses']['Validation'];
-      409: components['responses']['Conflict'];
+      413: components['responses']['PayloadTooLarge'];
+      422: components['responses']['Validation'];
       429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
     };
   };
   login: {
@@ -677,18 +965,28 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Connecté ; le refresh token est posé en cookie. */
-      200: {
+      200: components['responses']['AuthOk'];
+      /** @description Email ou mot de passe incorrect. */
+      401: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['AuthResponse'];
+          /**
+           * @example {
+           *       "error": {
+           *         "code": "UNAUTHENTICATED",
+           *         "message": "Email ou mot de passe incorrect"
+           *       }
+           *     }
+           */
+          'application/json': components['schemas']['ApiError'];
         };
       };
-      400: components['responses']['Validation'];
-      401: components['responses']['Unauthenticated'];
+      413: components['responses']['PayloadTooLarge'];
+      422: components['responses']['Validation'];
       429: components['responses']['RateLimited'];
+      500: components['responses']['Internal'];
     };
   };
   refresh: {
@@ -700,17 +998,28 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Nouveau jeton d'accès ; le refresh token est remplacé. */
-      200: {
+      200: components['responses']['AuthOk'];
+      /** @description Cookie absent, inconnu, expiré ou révoqué. */
+      401: {
         headers: {
+          /** @description Efface `refresh_token` (`Max-Age=0`, `Path=/auth`). */
+          'Set-Cookie'?: string;
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['AuthResponse'];
+          /**
+           * @example {
+           *       "error": {
+           *         "code": "UNAUTHENTICATED",
+           *         "message": "Session expirée"
+           *       }
+           *     }
+           */
+          'application/json': components['schemas']['ApiError'];
         };
       };
-      401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
+      403: components['responses']['UntrustedOrigin'];
+      500: components['responses']['Internal'];
     };
   };
   logout: {
@@ -722,99 +1031,75 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Déconnecté. */
+      /** @description Session de refresh close. Corps vide. */
       204: {
         headers: {
+          /** @description Efface `refresh_token` (`Path=/auth`). */
+          'Set-Cookie'?: string;
           [name: string]: unknown;
         };
         content?: never;
       };
-      403: components['responses']['Forbidden'];
-    };
-  };
-  linkHub: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['HubLinkRequest'];
-      };
-    };
-    responses: {
-      /** @description Jeton accepté par le hub ; le back le garde pour envoyer les scores. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HubLink'];
-        };
-      };
-      /** @description Jeton du hub absent, invalide, expiré ou émis pour un autre jeu (INVALID_TOKEN côté hub). */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiError'];
-        };
-      };
-      401: components['responses']['Unauthenticated'];
-      /** @description Hub indisponible (réseau, 429 RATE_LIMITED ou 410 VERSION_GONE côté hub). */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiError'];
-        };
-      };
-    };
-  };
-  getHubPlayer: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Joueur du hub associé. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HubLink'];
-        };
-      };
-      401: components['responses']['Unauthenticated'];
-      404: components['responses']['NotFound'];
+      403: components['responses']['UntrustedOrigin'];
+      500: components['responses']['Internal'];
     };
   };
   listThemes: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Taille de la page, de 1 à 100. Défaut 20. */
+        limit?: components['parameters']['PageLimit'];
+        /** @description Nombre d'éléments à sauter. Défaut 0. */
+        offset?: components['parameters']['PageOffset'];
+      };
       header?: never;
       path?: never;
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Liste des thèmes. */
+      /** @description Page de thèmes. */
       200: {
         headers: {
+          /** @description `public, max-age=300` */
+          'Cache-Control'?: string;
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['Theme'][];
+          'application/json': components['schemas']['ThemePage'];
         };
       };
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
+    };
+  };
+  getLeaderboard: {
+    parameters: {
+      query?: {
+        /** @description Taille de la page, de 1 à 100. Défaut 20. */
+        limit?: components['parameters']['PageLimit'];
+        /** @description Nombre d'éléments à sauter. Défaut 0. */
+        offset?: components['parameters']['PageOffset'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Page du classement. `rank` est le rang global, pas la position dans la page. */
+      200: {
+        headers: {
+          /** @description `no-cache` */
+          'Cache-Control'?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LeaderboardPage'];
+        };
+      };
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   createSession: {
@@ -824,24 +1109,35 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody: {
+    requestBody?: {
       content: {
         'application/json': components['schemas']['CreateSessionRequest'];
       };
     };
     responses: {
-      /** @description Partie créée. */
+      /** @description Partie créée, première question armée (`startedAt` dans 3 s). */
       201: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['CreateSessionResponse'];
         };
       };
-      400: components['responses']['Validation'];
       401: components['responses']['Unauthenticated'];
-      409: components['responses']['Conflict'];
+      /** @description Pool de questions insuffisant pour tirer une partie. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      413: components['responses']['PayloadTooLarge'];
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   getSession: {
@@ -849,24 +1145,28 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description Identifiant de la partie. */
         id: components['parameters']['SessionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description État courant. */
+      /** @description État de la partie. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['SessionDetailResponse'];
+          'application/json': components['schemas']['SessionDetail'];
         };
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
+      403: components['responses']['ForeignSession'];
+      404: components['responses']['SessionNotFound'];
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   getSessionSummary: {
@@ -874,15 +1174,17 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description Identifiant de la partie. */
         id: components['parameters']['SessionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Bilan. */
+      /** @description Questions réussies, ratées et meilleur combo. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
@@ -890,8 +1192,10 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
+      403: components['responses']['ForeignSession'];
+      404: components['responses']['SessionNotFound'];
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   shoot: {
@@ -899,6 +1203,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description Identifiant de la partie. */
         id: components['parameters']['SessionId'];
       };
       cookie?: never;
@@ -909,46 +1214,113 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Résultat du tir (arbitré par le serveur). */
+      /** @description Tir arbitré. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['ShotResponse'];
         };
       };
-      400: components['responses']['Validation'];
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-      409: components['responses']['Conflict'];
+      403: components['responses']['ForeignSession'];
+      404: components['responses']['SessionNotFound'];
+      /**
+       * @description Partie terminée, partie en pause, ou question pas encore commencée
+       *     (`serverNow` < `startedAt`).
+       */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      413: components['responses']['PayloadTooLarge'];
+      /**
+       * @description Corps invalide, propriété inconnue, réponse hors de la question active,
+       *     ou réponse déjà éliminée.
+       */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      500: components['responses']['Internal'];
     };
   };
-  reportTimeout: {
+  timeoutQuestion: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        /** @description Identifiant de la partie. */
         id: components['parameters']['SessionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Question close sur un timeout. */
+      /** @description Question close pour échéance. Même corps qu'un tir. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
+          /**
+           * @example {
+           *       "serverNow": "2026-10-27T10:00:20.000Z",
+           *       "outcome": "TIMEOUT",
+           *       "elapsedMs": 20000,
+           *       "questionClosed": true,
+           *       "reveal": {
+           *         "correctAnswerId": "clanswer",
+           *         "explanation": "401 signifie non authentifié, 403 signifie interdit.",
+           *         "mdnUrl": "https://developer.mozilla.org/fr/docs/Web/HTTP/Reference/Status/401",
+           *         "pointsAwarded": 0
+           *       },
+           *       "bonus": null,
+           *       "question": null,
+           *       "nextQuestion": null,
+           *       "session": {
+           *         "id": "clsession",
+           *         "mode": "NORMAL",
+           *         "status": "IN_PROGRESS",
+           *         "score": 120,
+           *         "hp": 80,
+           *         "combo": 0,
+           *         "multiplier": 1,
+           *         "currentIndex": 1,
+           *         "total": 30,
+           *         "paused": false,
+           *         "pauseEndsAt": null,
+           *         "pausesLeft": 3
+           *       }
+           *     }
+           */
           'application/json': components['schemas']['ShotResponse'];
         };
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-      409: components['responses']['Conflict'];
+      403: components['responses']['ForeignSession'];
+      404: components['responses']['SessionNotFound'];
+      /** @description Chrono pas encore échu, partie en pause, ou partie déjà terminée. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      500: components['responses']['Internal'];
     };
   };
   pauseSession: {
@@ -956,25 +1328,36 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description Identifiant de la partie. */
         id: components['parameters']['SessionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Partie en pause. */
+      /** @description Partie en pause. `session.paused` est vrai et `pauseEndsAt` est posé. */
       200: {
+        headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SessionDetail'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      403: components['responses']['ForeignSession'];
+      404: components['responses']['SessionNotFound'];
+      /** @description Déjà en pause, plus de pause disponible, ou partie terminée. */
+      409: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['SessionDetailResponse'];
+          'application/json': components['schemas']['ApiError'];
         };
       };
-      401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-      409: components['responses']['Conflict'];
+      500: components['responses']['Internal'];
     };
   };
   resumeSession: {
@@ -982,25 +1365,36 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description Identifiant de la partie. */
         id: components['parameters']['SessionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Partie reprise. */
+      /** @description Partie reprise, horaires décalés. */
       200: {
+        headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SessionDetail'];
+        };
+      };
+      401: components['responses']['Unauthenticated'];
+      403: components['responses']['ForeignSession'];
+      404: components['responses']['SessionNotFound'];
+      /** @description La partie n'est pas en pause, ou elle est déjà terminée. */
+      409: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['SessionDetailResponse'];
+          'application/json': components['schemas']['ApiError'];
         };
       };
-      401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-      409: components['responses']['Conflict'];
+      500: components['responses']['Internal'];
     };
   };
   endSession: {
@@ -1008,6 +1402,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description Identifiant de la partie. */
         id: components['parameters']['SessionId'];
       };
       cookie?: never;
@@ -1017,6 +1412,7 @@ export interface operations {
       /** @description Partie abandonnée. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
@@ -1024,40 +1420,39 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
-      409: components['responses']['Conflict'];
-    };
-  };
-  getLeaderboard: {
-    parameters: {
-      query?: {
-        limit?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Classement. */
-      200: {
+      403: components['responses']['ForeignSession'];
+      404: components['responses']['SessionNotFound'];
+      /** @description La partie est déjà terminée. */
+      409: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['LeaderboardEntry'][];
+          /**
+           * @example {
+           *       "error": {
+           *         "code": "CONFLICT",
+           *         "message": "La partie est terminée"
+           *       }
+           *     }
+           */
+          'application/json': components['schemas']['ApiError'];
         };
       };
-      400: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   listAdminQuestions: {
     parameters: {
       query?: {
-        themeId?: string;
+        themeId?: components['schemas']['Id'];
         kind?: components['schemas']['QuestionKind'];
+        /** @description Chaîne `true` ou `false`. Défaut `true`. */
         includeInactive?: 'true' | 'false';
+        /** @description Taille de la page, de 1 à 100. Défaut 20. */
+        limit?: components['parameters']['PageLimit'];
+        /** @description Nombre d'éléments à sauter. Défaut 0. */
+        offset?: components['parameters']['PageOffset'];
       };
       header?: never;
       path?: never;
@@ -1065,17 +1460,20 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Questions. */
+      /** @description Questions correspondant au filtre. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['AdminQuestion'][];
+          'application/json': components['schemas']['AdminQuestionPage'];
         };
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
+      403: components['responses']['ForbiddenRole'];
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   createAdminQuestion: {
@@ -1094,15 +1492,26 @@ export interface operations {
       /** @description Question créée. */
       201: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['AdminQuestion'];
         };
       };
-      400: components['responses']['Validation'];
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
+      403: components['responses']['ForbiddenRole'];
+      413: components['responses']['PayloadTooLarge'];
+      /** @description Corps invalide, thème inconnu, ou règle de réponses non respectée. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      500: components['responses']['Internal'];
     };
   };
   getAdminQuestion: {
@@ -1110,15 +1519,17 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        /** @description Identifiant de la question (catalogue, pas la question de partie). */
+        id: components['parameters']['QuestionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Question. */
+      /** @description Question, y compris `isCorrect` sur chaque réponse. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
@@ -1126,8 +1537,10 @@ export interface operations {
         };
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
+      403: components['responses']['ForbiddenRole'];
+      404: components['responses']['QuestionNotFound'];
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   updateAdminQuestion: {
@@ -1135,7 +1548,8 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        /** @description Identifiant de la question (catalogue, pas la question de partie). */
+        id: components['parameters']['QuestionId'];
       };
       cookie?: never;
     };
@@ -1145,19 +1559,30 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Question modifiée. */
+      /** @description Question mise à jour. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['AdminQuestion'];
         };
       };
-      400: components['responses']['Validation'];
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
+      403: components['responses']['ForbiddenRole'];
+      404: components['responses']['QuestionNotFound'];
+      413: components['responses']['PayloadTooLarge'];
+      /** @description Corps invalide, thème inconnu, ou identifiant de réponse étranger. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+      500: components['responses']['Internal'];
     };
   };
   deactivateAdminQuestion: {
@@ -1165,44 +1590,56 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        id: string;
+        /** @description Identifiant de la question (catalogue, pas la question de partie). */
+        id: components['parameters']['QuestionId'];
       };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Question désactivée. */
+      /** @description Question désactivée. Corps vide. */
       204: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content?: never;
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
-      404: components['responses']['NotFound'];
+      403: components['responses']['ForbiddenRole'];
+      404: components['responses']['QuestionNotFound'];
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
   getQuestionStats: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Taille de la page, de 1 à 100. Défaut 20. */
+        limit?: components['parameters']['PageLimit'];
+        /** @description Nombre d'éléments à sauter. Défaut 0. */
+        offset?: components['parameters']['PageOffset'];
+      };
       header?: never;
       path?: never;
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Statistiques. */
+      /** @description Page de statistiques. */
       200: {
         headers: {
+          'Cache-Control': components['headers']['CacheControlNoStore'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['QuestionStat'][];
+          'application/json': components['schemas']['QuestionStatPage'];
         };
       };
       401: components['responses']['Unauthenticated'];
-      403: components['responses']['Forbidden'];
+      403: components['responses']['ForbiddenRole'];
+      422: components['responses']['Validation'];
+      500: components['responses']['Internal'];
     };
   };
 }

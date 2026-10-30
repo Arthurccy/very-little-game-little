@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  MAX_PAUSE_MS,
-  type BonusDrop,
-  type CreateSessionResponse,
-  type PublicQuestion,
-  type QuestionReveal,
-  type SessionDetailResponse,
-  type SessionStateDTO,
-  type ShotOutcome,
-  type ShotResponse,
-} from '@fps/shared';
+import { MAX_PAUSE_MS } from '@fps/shared';
+import type {
+  BonusDrop,
+  CreateSessionResponse,
+  PublicQuestion,
+  QuestionReveal,
+  SessionDetail,
+  SessionState,
+  ShotOutcome,
+  ShotResponse,
+} from '../api/types';
 import { ApiRequestError } from '../api/client';
 import { gameApi } from '../api/endpoints';
 import { sfx } from './audio';
@@ -62,7 +62,7 @@ interface QueuedShot {
  * Les tirs passent par une file : un tir n'est jamais perdu parce que le précédent attend
  * encore la réponse du serveur. La file est vidée quand la question se termine.
  */
-export function useGame(initial: CreateSessionResponse, onEnded: (session: SessionStateDTO) => void) {
+export function useGame(initial: CreateSessionResponse, onEnded: (session: SessionState) => void) {
   const offsetRef = useRef(Date.parse(initial.serverNow) - Date.now());
   const serverNow = useCallback(() => Date.now() + offsetRef.current, []);
 
@@ -121,7 +121,7 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
     }
   }, [session.id]);
 
-  const finish = useCallback((final: SessionStateDTO) => {
+  const finish = useCallback((final: SessionState) => {
     if (ended.current) return;
     ended.current = true;
     setTimeout(() => {
@@ -187,8 +187,8 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
         try {
           apply(await gameApi.shoot(session.id, shot.answerId), q, shot.answerId);
         } catch (err) {
-          // 400 : ce tir seul est invalide, les suivants restent valables.
-          if (err instanceof ApiRequestError && err.status === 400) continue;
+          // 422 : ce tir seul est invalide, les suivants restent valables (400 : serveur antérieur à la v0.2).
+          if (err instanceof ApiRequestError && (err.status === 422 || err.status === 400)) continue;
           queue.current = [];
           if (err instanceof ApiRequestError && err.status === 409) await resync();
           else setError(err instanceof Error ? err.message : 'Tir non transmis');
@@ -236,7 +236,7 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
 
   /** Applique la réponse de pause/reprise : état de partie et horaires décalés de la question. */
   const applyDetail = useCallback(
-    (res: SessionDetailResponse) => {
+    (res: SessionDetail) => {
       offsetRef.current = Date.parse(res.serverNow) - Date.now();
       setSession(res.session);
       const q = res.question;

@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
-    "generate:api": "openapi-typescript ../contracts/front-api.yaml -o src/api/schema.d.ts && openapi-typescript ../contracts/integration-v1.yaml -o src/api/hub-schema.d.ts && prettier --write src/api/schema.d.ts src/api/hub-schema.d.ts"
+    "generate:api": "openapi-typescript ../contracts/openapi.yaml -o src/api/schema.d.ts && openapi-typescript ../contracts/integration-v1.yaml -o src/api/hub-schema.d.ts && prettier --write src/api/schema.d.ts src/api/hub-schema.d.ts"
   },
   "dependencies": {
     "@fps/shared": "0.1.0",

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import type { ThemeDTO } from '@fps/shared';
+import type { Theme } from '../../api/types';
 import { QuestionsTab } from './QuestionsTab';
 import { StatsTab } from './StatsTab';
 
-export function AdminScreen({ themes, onBack }: { themes: ThemeDTO[]; onBack: () => void }) {
+export function AdminScreen({ themes, onBack }: { themes: Theme[]; onBack: () => void }) {
   const [tab, setTab] = useState<'questions' | 'stats'>('questions');
   return (
     <main className="panel panel--wide">

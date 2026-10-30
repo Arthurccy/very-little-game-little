@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import type { AdminAnswerInput, AdminQuestionDTO, AdminQuestionInput, QuestionKind, ThemeDTO } from '@fps/shared';
+import type { AdminAnswerInput, AdminQuestion, AdminQuestionInput, QuestionKind, Theme } from '../../api/types';
 import { ApiRequestError } from '../../api/client';
 import { adminApi } from '../../api/endpoints';
 
 interface Props {
-  themes: ThemeDTO[];
-  initial: AdminQuestionDTO | null;
+  themes: Theme[];
+  initial: AdminQuestion | null;
   defaultThemeId: string;
   onCancel: () => void;
   onSaved: () => void;

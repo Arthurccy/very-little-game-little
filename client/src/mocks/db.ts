@@ -23,22 +23,22 @@ import {
 import type { components as HubComponents } from '../api/hub-schema';
 import type {
   AdminQuestion,
+  ApiErrorCode,
   AdminQuestionInput,
   CreateSessionResponse,
   GameMode,
-  HubLink,
   HubPlayer,
-  HubScore,
   LeaderboardEntry,
   PublicQuestion,
   PublicUser,
   QuestionStat,
-  SessionDetailResponse,
+  SessionDetail,
   SessionState,
   SessionSummary,
   ShotResponse,
   Theme,
 } from '../api/types';
+import type { HubLink, HubScore, SessionSummaryWithHub } from '../api/hub-relay';
 import fixtures from './fixtures.json';
 import { activeScenario } from './scenarios';
 
@@ -47,9 +47,9 @@ import { activeScenario } from './scenarios';
 export class MockApiError extends Error {
   constructor(
     readonly status: number,
-    readonly code: 'VALIDATION' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL',
+    readonly code: ApiErrorCode,
     message: string,
-    readonly details?: unknown,
+    readonly details?: { path: string; message: string }[],
   ) {
     super(message);
   }
@@ -160,7 +160,7 @@ export const auth = {
     if (body.pseudo.trim().length < 3) details.push({ path: 'pseudo', message: 'Pseudo : 3 caractères minimum' });
     if (!email.includes('@')) details.push({ path: 'email', message: 'Email invalide' });
     if (body.password.length < 8) details.push({ path: 'password', message: 'Mot de passe : 8 caractères minimum' });
-    if (details.length) throw new MockApiError(400, 'VALIDATION', 'Requête invalide', details);
+    if (details.length) throw new MockApiError(422, 'VALIDATION', 'Requête invalide', details);
     if (users.some((u) => u.email === email)) throw new MockApiError(409, 'CONFLICT', 'Email déjà utilisé');
     if (users.some((u) => u.pseudo.toLowerCase() === body.pseudo.trim().toLowerCase())) {
       throw new MockApiError(409, 'CONFLICT', 'Pseudo déjà pris');
@@ -210,11 +210,33 @@ export const auth = {
   },
 };
 
+// --- Pagination (contrat : listes en pages { items, limit, offset, total }) --
+
+export interface PageQuery {
+  limit: number;
+  offset: number;
+}
+
+/** Lit `limit` (1 à 100, défaut 20) et `offset` (≥ 0, défaut 0) ; hors bornes : 422 comme le contrat. */
+export function pageQuery(url: URL): PageQuery {
+  const limit = Number(url.searchParams.get('limit') ?? 20);
+  const offset = Number(url.searchParams.get('offset') ?? 0);
+  const details: { path: string; message: string }[] = [];
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) details.push({ path: 'limit', message: 'Entre 1 et 100' });
+  if (!Number.isInteger(offset) || offset < 0) details.push({ path: 'offset', message: 'Entier positif ou nul' });
+  if (details.length) throw new MockApiError(422, 'VALIDATION', 'Requête invalide', details);
+  return { limit, offset };
+}
+
+export function paginate<T>(all: T[], { limit, offset }: PageQuery) {
+  return { items: all.slice(offset, offset + limit), limit, offset, total: all.length };
+}
+
 // --- Thèmes et classement ----------------------------------------------
 
 export const listThemes = (): Theme[] => [...themes].sort((a, b) => a.order - b.order);
 
-export function leaderboard(limit: number): LeaderboardEntry[] {
+export function leaderboard(): LeaderboardEntry[] {
   const best = new Map<string, LeaderboardEntry>();
   for (const e of fakeLeaderboard) best.set(e.pseudo, e);
   for (const s of sessions.values()) {
@@ -226,7 +248,6 @@ export function leaderboard(limit: number): LeaderboardEntry[] {
   }
   return [...best.values()]
     .sort((a, b) => b.score - a.score || a.endedAt.localeCompare(b.endedAt))
-    .slice(0, limit)
     .map((e, i) => ({ ...e, rank: i + 1 }));
 }
 
@@ -311,7 +332,7 @@ function notPaused(s: MockSession): void {
   if (s.pausedAt !== null) throw new MockApiError(409, 'CONFLICT', 'La partie est en pause');
 }
 
-function detail(s: MockSession, now: number): SessionDetailResponse {
+function detail(s: MockSession, now: number): SessionDetail {
   const sq = s.status === 'IN_PROGRESS' ? s.questions[s.currentIndex] : undefined;
   return {
     session: sessionState(s),
@@ -321,7 +342,7 @@ function detail(s: MockSession, now: number): SessionDetailResponse {
 }
 
 export const game = {
-  create(userId: string, mode: GameMode): CreateSessionResponse {
+  create(userId: string, mode: GameMode = 'NORMAL'): CreateSessionResponse {
     const now = Date.now();
     for (const s of sessions.values()) {
       if (s.userId === userId && s.status === 'IN_PROGRESS') {
@@ -380,14 +401,14 @@ export const game = {
     };
   },
 
-  get(userId: string, sessionId: string): SessionDetailResponse {
+  get(userId: string, sessionId: string): SessionDetail {
     const now = Date.now();
     const s = owned(userId, sessionId);
     if (s.status === 'IN_PROGRESS') settlePause(s, now);
     return detail(s, now);
   },
 
-  summary(userId: string, sessionId: string): SessionSummary {
+  summary(userId: string, sessionId: string): SessionSummaryWithHub {
     const s = owned(userId, sessionId);
     let streak = 0;
     let bestCombo = 0;
@@ -418,8 +439,8 @@ export const game = {
 
     const answers = displayed(sq);
     const answer = answers.find((a) => a.id === answerId);
-    if (!answer) throw new MockApiError(400, 'VALIDATION', 'Cette réponse ne fait pas partie de la question en cours');
-    if (sq.eliminated.includes(answerId)) throw new MockApiError(400, 'VALIDATION', 'Réponse déjà éliminée');
+    if (!answer) throw new MockApiError(422, 'VALIDATION', 'Cette réponse ne fait pas partie de la question en cours');
+    if (sq.eliminated.includes(answerId)) throw new MockApiError(422, 'VALIDATION', 'Réponse déjà éliminée');
     if (answer.isCorrect) return closeQuestion(s, sq, 'HIT_CORRECT', false, HIT_CORRECT_PENALTY, now, null);
 
     sq.eliminated.push(answerId);
@@ -470,7 +491,7 @@ export const game = {
     return closeQuestion(s, sq, 'TIMEOUT', false, TIMEOUT_PENALTY, now, null);
   },
 
-  pause(userId: string, sessionId: string): SessionDetailResponse {
+  pause(userId: string, sessionId: string): SessionDetail {
     const now = Date.now();
     const s = owned(userId, sessionId);
     inProgress(s);
@@ -482,7 +503,7 @@ export const game = {
     return detail(s, now);
   },
 
-  resume(userId: string, sessionId: string): SessionDetailResponse {
+  resume(userId: string, sessionId: string): SessionDetail {
     const now = Date.now();
     const s = owned(userId, sessionId);
     inProgress(s);
@@ -636,14 +657,14 @@ export const hub = {
       const [, payload] = fsqToken.split('.');
       claims = JSON.parse(decodeBase64url(payload ?? '')) as HubTokenClaims;
     } catch {
-      throw new MockApiError(400, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré');
+      throw new MockApiError(422, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré');
     }
     const valid =
       /^p_[0-9]+$/.test(claims.sub) &&
       claims.game === GAME_ID &&
       typeof claims.exp === 'number' &&
       claims.exp * 1000 > Date.now();
-    if (!valid) throw new MockApiError(400, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré');
+    if (!valid) throw new MockApiError(422, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré');
     const player: HubPlayer = { playerId: claims.sub, pseudo: claims.pseudo, level: claims.level };
     writeHubLinks({ ...readHubLinks(), [userId]: { player, sandbox: claims.sandbox === true } });
     return { player };
@@ -683,7 +704,7 @@ function validateQuestion(input: AdminQuestionInput): void {
   if (input.answers.filter((a) => a.isCorrect).length !== 1) {
     details.push({ path: 'answers', message: 'Exactement une bonne réponse' });
   }
-  if (details.length) throw new MockApiError(400, 'VALIDATION', 'Requête invalide', details);
+  if (details.length) throw new MockApiError(422, 'VALIDATION', 'Requête invalide', details);
 }
 
 export const admin = {
@@ -709,7 +730,7 @@ export const admin = {
       themeSlug: themes.find((t) => t.id === input.themeId)!.slug,
       statement: input.statement,
       explanation: input.explanation,
-      mdnUrl: input.mdnUrl,
+      mdnUrl: input.mdnUrl ?? null,
       difficulty: input.difficulty,
       kind: input.kind,
       timeLimitMs: input.timeLimitMs,
@@ -728,7 +749,7 @@ export const admin = {
       themeSlug: themes.find((t) => t.id === input.themeId)!.slug,
       statement: input.statement,
       explanation: input.explanation,
-      mdnUrl: input.mdnUrl,
+      mdnUrl: input.mdnUrl ?? null,
       difficulty: input.difficulty,
       kind: input.kind,
       timeLimitMs: input.timeLimitMs,

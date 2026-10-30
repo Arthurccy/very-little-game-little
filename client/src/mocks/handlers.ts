@@ -1,6 +1,6 @@
 /**
  * Handlers Mock Service Worker de tous les appels de l'application, typés par le contrat
- * OpenAPI (`../api/types`, généré depuis `contracts/front-api.yaml`). Le corps de chaque
+ * OpenAPI (`../api/types`, généré depuis `contracts/openapi.yaml`). Le corps de chaque
  * réponse doit respecter le contrat, sinon la compilation échoue.
  */
 import { delay, http, HttpResponse, type DefaultBodyType, type HttpResponseResolver } from 'msw';
@@ -8,24 +8,25 @@ import { API_URL } from '../api/client';
 import type {
   AdminQuestion,
   AdminQuestionInput,
+  AdminQuestionPage,
   ApiError,
   AuthResponse,
   CreateSessionRequest,
   CreateSessionResponse,
   EndSessionResponse,
-  HubLink,
-  HubLinkRequest,
-  LeaderboardEntry,
+  LeaderboardPage,
   LoginRequest,
   QuestionStat,
+  QuestionStatPage,
   RegisterRequest,
-  SessionDetailResponse,
+  SessionDetail,
   SessionSummary,
   ShotRequest,
   ShotResponse,
-  Theme,
+  ThemePage,
 } from '../api/types';
-import { admin, auth, game, hub, leaderboard, listThemes, MockApiError } from './db';
+import type { HubLink, HubLinkRequest, SessionSummaryWithHub } from '../api/hub-relay';
+import { admin, auth, game, hub, leaderboard, listThemes, MockApiError, pageQuery, paginate } from './db';
 import { activeScenario, type ScenarioId } from './scenarios';
 
 const url = (path: string) => `${API_URL}${path}`;
@@ -33,7 +34,12 @@ const url = (path: string) => `${API_URL}${path}`;
 /** Latence réaliste, pour voir les états de chargement. */
 const LATENCY_MS = 120;
 
-function errorResponse(status: number, code: ApiError['error']['code'], message: string, details?: unknown) {
+function errorResponse(
+  status: number,
+  code: ApiError['error']['code'],
+  message: string,
+  details?: { path: string; message: string }[],
+) {
   const body: ApiError = { error: details === undefined ? { code, message } : { code, message, details } };
   return HttpResponse.json(body, { status });
 }
@@ -71,8 +77,8 @@ const body = <T>(request: Request) => request.json() as Promise<T>;
 
 const noScenario = () => new Response(null, { status: 500 });
 
-const refused400 = () =>
-  errorResponse(400, 'VALIDATION', 'Requête invalide', [
+const refused422 = () =>
+  errorResponse(422, 'VALIDATION', 'Requête invalide', [
     { path: 'statement', message: 'Énoncé refusé par le serveur (scénario de démonstration)' },
   ]);
 
@@ -109,7 +115,7 @@ export const handlers = [
     url('/hub/link'),
     route(
       'hub-link-invalid',
-      () => errorResponse(400, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré'),
+      () => errorResponse(422, 'VALIDATION', 'Le jeton du hub est invalide ou a expiré'),
       async ({ request }) => {
         const { fsqToken } = await body<HubLinkRequest>(request);
         return json<HubLink>(hub.link(userId(request), fsqToken));
@@ -124,7 +130,7 @@ export const handlers = [
   // --- Menu ---------------------------------------------------------------
   http.get(
     url('/themes'),
-    route(null, noScenario, () => json<Theme[]>(listThemes())),
+    route(null, noScenario, ({ request }) => json<ThemePage>(paginate(listThemes(), pageQuery(new URL(request.url))))),
   ),
   http.post(
     url('/sessions'),
@@ -141,9 +147,7 @@ export const handlers = [
   // --- Partie -------------------------------------------------------------
   http.get(
     url('/sessions/:id'),
-    route(null, noScenario, ({ request, params }) =>
-      json<SessionDetailResponse>(game.get(userId(request), id(params))),
-    ),
+    route(null, noScenario, ({ request, params }) => json<SessionDetail>(game.get(userId(request), id(params)))),
   ),
   http.post(
     url('/sessions/:id/shots'),
@@ -162,15 +166,11 @@ export const handlers = [
   ),
   http.post(
     url('/sessions/:id/pause'),
-    route(null, noScenario, ({ request, params }) =>
-      json<SessionDetailResponse>(game.pause(userId(request), id(params))),
-    ),
+    route(null, noScenario, ({ request, params }) => json<SessionDetail>(game.pause(userId(request), id(params)))),
   ),
   http.post(
     url('/sessions/:id/resume'),
-    route(null, noScenario, ({ request, params }) =>
-      json<SessionDetailResponse>(game.resume(userId(request), id(params))),
-    ),
+    route(null, noScenario, ({ request, params }) => json<SessionDetail>(game.resume(userId(request), id(params)))),
   ),
   http.post(
     url('/sessions/:id/end'),
@@ -183,7 +183,7 @@ export const handlers = [
     route(
       'end-summary-404',
       () => errorResponse(404, 'NOT_FOUND', 'Partie introuvable'),
-      ({ request, params }) => json<SessionSummary>(game.summary(userId(request), id(params))),
+      ({ request, params }) => json<SessionSummaryWithHub>(game.summary(userId(request), id(params))),
     ),
   ),
 
@@ -194,8 +194,7 @@ export const handlers = [
       'leaderboard-500',
       () => errorResponse(500, 'INTERNAL', 'Erreur interne'),
       ({ request }) => {
-        const limit = Number(new URL(request.url).searchParams.get('limit') ?? 20) || 20;
-        return json<LeaderboardEntry[]>(leaderboard(Math.min(100, Math.max(1, limit))));
+        return json<LeaderboardPage>(paginate(leaderboard(), pageQuery(new URL(request.url))));
       },
     ),
   ),
@@ -206,12 +205,15 @@ export const handlers = [
     route(null, noScenario, ({ request }) => {
       auth.requireAdmin(request.headers.get('authorization'));
       const query = new URL(request.url).searchParams;
-      return json<AdminQuestion[]>(
-        admin.list({
-          themeId: query.get('themeId'),
-          kind: query.get('kind'),
-          includeInactive: query.get('includeInactive') !== 'false',
-        }),
+      return json<AdminQuestionPage>(
+        paginate(
+          admin.list({
+            themeId: query.get('themeId'),
+            kind: query.get('kind'),
+            includeInactive: query.get('includeInactive') !== 'false',
+          }),
+          pageQuery(new URL(request.url)),
+        ),
       );
     }),
   ),
@@ -224,14 +226,14 @@ export const handlers = [
   ),
   http.post(
     url('/admin/questions'),
-    route('admin-save-400', refused400, async ({ request }) => {
+    route('admin-save-422', refused422, async ({ request }) => {
       auth.requireAdmin(request.headers.get('authorization'));
       return json<AdminQuestion>(admin.create(await body<AdminQuestionInput>(request)), 201);
     }),
   ),
   http.put(
     url('/admin/questions/:id'),
-    route('admin-save-400', refused400, async ({ request, params }) => {
+    route('admin-save-422', refused422, async ({ request, params }) => {
       auth.requireAdmin(request.headers.get('authorization'));
       return json<AdminQuestion>(admin.update(id(params), await body<AdminQuestionInput>(request)));
     }),
@@ -248,7 +250,7 @@ export const handlers = [
     url('/stats/questions'),
     route(null, noScenario, ({ request }) => {
       auth.requireAdmin(request.headers.get('authorization'));
-      return json<QuestionStat[]>(admin.stats());
+      return json<QuestionStatPage>(paginate(admin.stats(), pageQuery(new URL(request.url))));
     }),
   ),
 ];

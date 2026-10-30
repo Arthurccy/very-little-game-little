@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { QuestionStatDTO, ThemeDTO } from '@fps/shared';
+import type { QuestionStat, Theme } from '../../api/types';
 import { adminApi } from '../../api/endpoints';
 
 type Sort = 'success' | 'attempts' | 'time';
 
-export function StatsTab({ themes }: { themes: ThemeDTO[] }) {
-  const [stats, setStats] = useState<QuestionStatDTO[] | null>(null);
+export function StatsTab({ themes }: { themes: Theme[] }) {
+  const [stats, setStats] = useState<QuestionStat[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>('success');
   const [theme, setTheme] = useState('');
@@ -17,7 +17,7 @@ export function StatsTab({ themes }: { themes: ThemeDTO[] }) {
   const rows = useMemo(() => {
     if (!stats) return [];
     const filtered = stats.filter((s) => !theme || s.themeSlug === theme);
-    const key = (s: QuestionStatDTO) =>
+    const key = (s: QuestionStat) =>
       sort === 'success' ? (s.successRate ?? 2) : sort === 'attempts' ? -s.attempts : (s.averageElapsedMs ?? 0) * -1;
     return [...filtered].sort((a, b) => key(a) - key(b));
   }, [stats, sort, theme]);

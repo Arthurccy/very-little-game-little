@@ -51,7 +51,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
           setMessage(null);
         } catch (err) {
           if (cancelled) return;
-          if (err instanceof ApiRequestError && err.status === 400) {
+          if (err instanceof ApiRequestError && (err.status === 422 || err.status === 400)) {
             // Jeton refusé par le hub : inutile de le renvoyer.
             clearLaunchToken();
             setStatus('invalid');

@@ -4,14 +4,13 @@ import {
   STANDARD_QUESTIONS_PER_ZONE,
   STARTING_HP,
   TIMEOUT_PENALTY,
-  type GameMode,
-  type ThemeDTO,
 } from '@fps/shared';
+import type { GameMode, Theme } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { HubBadge } from '../hub/HubBadge';
 
 interface Props {
-  themes: ThemeDTO[];
+  themes: Theme[];
   starting: boolean;
   error: string | null;
   onStart: (mode: GameMode) => void;

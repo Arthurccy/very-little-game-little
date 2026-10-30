@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import type { CreateSessionResponse, GameMode, SessionStateDTO, ThemeDTO } from '@fps/shared';
+import type { CreateSessionResponse, GameMode, SessionState, Theme } from './api/types';
 import { gameApi } from './api/endpoints';
 import { useAuth } from './auth/AuthContext';
 import { AuthScreen } from './screens/AuthScreen';
@@ -14,14 +14,14 @@ const AdminScreen = lazy(() => import('./screens/admin/AdminScreen').then((m) =>
 type Screen =
   | { name: 'menu' }
   | { name: 'game'; session: CreateSessionResponse }
-  | { name: 'end'; session: SessionStateDTO }
+  | { name: 'end'; session: SessionState }
   | { name: 'leaderboard' }
   | { name: 'admin' };
 
 export function App() {
   const { user, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>({ name: 'menu' });
-  const [themes, setThemes] = useState<ThemeDTO[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastMode, setLastMode] = useState<GameMode>('NORMAL');

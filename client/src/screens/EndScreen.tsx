@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
-import type { SessionStateDTO } from '@fps/shared';
-import type { HubScore, SessionSummary } from '../api/types';
+import type { SessionState } from '../api/types';
+import type { HubScore, SessionSummaryWithHub } from '../api/hub-relay';
 import { gameApi } from '../api/endpoints';
 
 interface Props {
-  session: SessionStateDTO;
+  session: SessionState;
   onReplay: () => void;
   onLeaderboard: () => void;
   onMenu: () => void;
 }
 
-const TITLES: Record<SessionStateDTO['status'], string> = {
+const TITLES: Record<SessionState['status'], string> = {
   WON: 'Victoire !',
   LOST: 'Game over',
   ABANDONED: 'Partie abandonnée',
@@ -18,7 +18,7 @@ const TITLES: Record<SessionStateDTO['status'], string> = {
 };
 
 export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
-  const [summary, setSummary] = useState<SessionSummary | null>(null);
+  const [summary, setSummary] = useState<SessionSummaryWithHub | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
