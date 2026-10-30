@@ -1,0 +1,184 @@
+openapi: 3.1.0
+info:
+  title: Full-Stack Quest — contrat d'intégration v1
+  version: 1.0.0
+  summary: Brancher le mini-jeu d'une équipe sur le hub Full-Stack Quest.
+  description: |
+    Ce contrat est **la seule chose** que votre équipe connaît de la plateforme.
+
+    ## Parcours d'une partie
+    1. Le joueur clique sur votre jeu dans le hub.
+    2. Le hub ouvre `https://<url-de-votre-jeu>/?fsq_token=<JWT>`.
+    3. Votre **front** lit `fsq_token` dans l'URL et le transmet à **votre back** (jamais ailleurs).
+    4. Votre back appelle `GET /api/v1/me` pour savoir qui joue.
+    5. En fin de niveau, votre back appelle `POST /api/v1/scores` avec le jeton **et** votre clé `X-Game-Key`.
+
+    ## Règles
+    - La clé `X-Game-Key` reste **côté serveur**. Si elle apparaît dans le JavaScript du navigateur, n'importe qui peut tricher.
+    - Le jeton expire au bout de **2 heures** et n'est valable que pour **votre** jeu.
+    - 60 requêtes par minute maximum.
+    - Toutes les erreurs ont le même format : `{ "error": { "code": "...", "message": "..." } }`.
+
+    ## Manifeste
+    Votre serveur publie `GET /fsq-manifest.json` (voir le schéma `Manifest`).
+
+    ## Calendrier
+    - **2 février 2027** : publication de la v2 ; la v1 renvoie les en-têtes `Deprecation` et `Sunset`.
+    - **23 février 2027** : arrêt de la v1.
+servers:
+  - url: http://localhost:3000
+    description: Plateforme en local
+tags:
+  - name: Joueur
+  - name: Scores
+paths:
+  /api/v1/me:
+    get:
+      tags: [Joueur]
+      operationId: getMe
+      summary: Identifier le joueur qui a lancé le jeu
+      security:
+        - playerToken: []
+      responses:
+        '200':
+          description: Le joueur
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+              example: { playerId: 'p_42', pseudo: 'Neo', level: 7 }
+        '401': { $ref: '#/components/responses/InvalidToken' }
+        '410': { $ref: '#/components/responses/VersionGone' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /api/v1/scores:
+    post:
+      tags: [Scores]
+      operationId: postScore
+      summary: Enregistrer le score d'un niveau
+      description: |
+        À appeler **depuis votre back**. L'XP est proportionnelle à `score / scoreMax` (déclaré à l'enregistrement du jeu),
+        une fois par niveau et par jour. Un jeton de bac à sable enregistre le score sans donner d'XP.
+      security:
+        - playerToken: []
+          gameKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScoreRequest' }
+            example: { gameId: 'cache-racer', level: 3, score: 1850, durationMs: 94000 }
+      responses:
+        '201':
+          description: Score accepté
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScoreResponse' }
+              example: { accepted: true, xpGained: 120 }
+        '401': { $ref: '#/components/responses/InvalidToken' }
+        '403': { $ref: '#/components/responses/InvalidGameKey' }
+        '410': { $ref: '#/components/responses/VersionGone' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+components:
+  securitySchemes:
+    playerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Le `fsq_token` reçu dans l'URL de lancement.
+    gameKey:
+      type: apiKey
+      in: header
+      name: X-Game-Key
+      description: Clé secrète de votre jeu, remise par l'intervenant. Uniquement côté serveur.
+  schemas:
+    Player:
+      type: object
+      required: [playerId, pseudo, level]
+      properties:
+        playerId: { type: string, pattern: '^p_[0-9]+$', description: Identifiant stable du joueur }
+        pseudo: { type: string }
+        level: { type: integer, minimum: 1, description: Niveau du joueur sur la plateforme }
+    ScoreRequest:
+      type: object
+      required: [gameId, level, score]
+      additionalProperties: false
+      properties:
+        gameId: { type: string, description: Identifiant de votre jeu (doit correspondre au jeton) }
+        level: { type: integer, minimum: 1, description: Numéro du niveau terminé }
+        score: { type: integer, minimum: 0, description: Score brut, au plus le scoreMax déclaré }
+        durationMs: { type: integer, minimum: 0, description: Durée de la partie (facultatif en v1) }
+    ScoreResponse:
+      type: object
+      required: [accepted, xpGained]
+      properties:
+        accepted: { type: boolean }
+        xpGained: { type: integer, minimum: 0 }
+    Manifest:
+      type: object
+      required: [id, name, team, theme, url, levels, contractVersion]
+      properties:
+        id: { type: string, pattern: '^[a-z0-9-]{3,40}$' }
+        name: { type: string }
+        team: { type: string }
+        theme: { type: string, description: 'Notion du cours abordée (ex. performance)' }
+        url: { type: string, format: uri }
+        levels: { type: integer, minimum: 1 }
+        contractVersion: { type: string, enum: ['1.0', '2.0'] }
+      example:
+        {
+          id: cache-racer,
+          name: Cache Racer,
+          team: equipe-3,
+          theme: performance,
+          url: 'https://cache-racer.equipe3.app',
+          levels: 5,
+          contractVersion: '1.0',
+        }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              { type: string, enum: [INVALID_TOKEN, INVALID_GAME_KEY, VALIDATION_ERROR, RATE_LIMITED, VERSION_GONE] }
+            message: { type: string }
+  responses:
+    InvalidToken:
+      description: Jeton absent, invalide, expiré ou émis pour un autre jeu
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: INVALID_TOKEN, message: 'Le jeton est invalide ou a expiré' } }
+    InvalidGameKey:
+      description: Clé de jeu absente ou invalide
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: INVALID_GAME_KEY, message: 'Clé de jeu absente ou invalide pour ce jeu' } }
+    ValidationError:
+      description: Corps de requête invalide
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: VALIDATION_ERROR, message: 'score : Expected number, received string' } }
+    RateLimited:
+      description: Plus de 60 requêtes par minute
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    VersionGone:
+      description: La v1 est coupée (à partir du 23 février 2027) ; utilisez /api/v2
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            {
+              error:
+                {
+                  code: VERSION_GONE,
+                  message: 'La v1 du contrat est coupée depuis le 23 février 2027 : migrez vers /api/v2',
+                },
+            }
