@@ -7,12 +7,12 @@ import { Hud } from './hud/Hud';
 import type { AimShot } from './scene/Player';
 import { BOSS_PROJECTILE_IMPACT_MS } from './scene/Boss';
 import { World } from './scene/World';
-import { useGame } from './useGame';
+import { useGame, type FailedQuestionReview } from './useGame';
 
 interface Props {
   initial: CreateSessionResponse;
   themes: Theme[];
-  onEnded: (session: SessionState) => void;
+  onEnded: (session: SessionState, failedQuestions?: FailedQuestionReview[]) => void;
 }
 
 export function GameScreen({ initial, themes, onEnded }: Props) {
