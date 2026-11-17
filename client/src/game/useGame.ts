@@ -25,6 +25,18 @@ export interface RevealState {
   closedAt: number;
 }
 
+/** Question échouée conservée pour le récapitulatif pédagogique de fin de partie. */
+export interface FailedQuestionReview {
+  id: string;
+  statement: string;
+  themeSlug: string;
+  zone: number;
+  outcome: 'HIT_CORRECT' | 'TIMEOUT';
+  correctAnswerText: string;
+  explanation: string;
+  mdnUrl: string | null;
+}
+
 export interface ShotFx {
   answerId: string;
   outcome: ShotOutcome;
@@ -62,7 +74,10 @@ interface QueuedShot {
  * Les tirs passent par une file : un tir n'est jamais perdu parce que le précédent attend
  * encore la réponse du serveur. La file est vidée quand la question se termine.
  */
-export function useGame(initial: CreateSessionResponse, onEnded: (session: SessionState) => void) {
+export function useGame(
+  initial: CreateSessionResponse,
+  onEnded: (session: SessionState, failedQuestions?: FailedQuestionReview[]) => void,
+) {
   const offsetRef = useRef(Date.parse(initial.serverNow) - Date.now());
   const serverNow = useCallback(() => Date.now() + offsetRef.current, []);
 
@@ -75,6 +90,9 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
   const [lastClose, setLastClose] = useState<CloseFx | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(serverNow);
+
+  /** Questions ratées enregistrées pendant la partie pour le bilan final. */
+  const failedQuestionsRef = useRef<FailedQuestionReview[]>([]);
 
   /** Question qui accepte des tirs (null pendant l'explication ou le compte à rebours suivant). */
   const openQuestion = useRef<PublicQuestion | null>(initial.question);
@@ -128,7 +146,7 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
       if (final.status === 'WON') sfx.victory();
       else if (final.status === 'LOST') sfx.defeat();
       setReveal(null);
-      onEndedRef.current(final);
+      onEndedRef.current(final, failedQuestionsRef.current);
     }, END_DELAY_MS);
   }, []);
 
@@ -156,6 +174,22 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
       if (res.outcome === 'HIT_CORRECT') sfx.hitCorrect();
       else if (res.outcome === 'TIMEOUT') sfx.timeout();
       else sfx.cleared();
+
+      if (res.outcome === 'HIT_CORRECT' || res.outcome === 'TIMEOUT') {
+        const correctText = current.answers.find((a) => a.id === res.reveal?.correctAnswerId)?.text ?? '';
+        if (!failedQuestionsRef.current.some((f) => f.id === current.id)) {
+          failedQuestionsRef.current.push({
+            id: current.id,
+            statement: current.statement,
+            themeSlug: current.themeSlug,
+            zone: current.zone,
+            outcome: res.outcome,
+            correctAnswerText: correctText,
+            explanation: res.reveal?.explanation ?? '',
+            mdnUrl: res.reveal?.mdnUrl ?? null,
+          });
+        }
+      }
 
       const eliminated =
         res.outcome === 'ELIMINATED_WRONG'
@@ -301,9 +335,9 @@ export function useGame(initial: CreateSessionResponse, onEnded: (session: Sessi
     try {
       const res = await gameApi.end(session.id);
       ended.current = true;
-      onEndedRef.current(res.session);
+      onEndedRef.current(res.session, failedQuestionsRef.current);
     } catch {
-      onEndedRef.current(session);
+      onEndedRef.current(session, failedQuestionsRef.current);
     }
   }, [session]);
 

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import type { CreateSessionResponse, GameMode, SessionState, Theme } from './api/types';
+import type { FailedQuestionReview } from './game/useGame';
 import { gameApi } from './api/endpoints';
 import { useAuth } from './auth/AuthContext';
 import { AuthScreen } from './screens/AuthScreen';
@@ -14,7 +15,7 @@ const AdminScreen = lazy(() => import('./screens/admin/AdminScreen').then((m) =>
 type Screen =
   | { name: 'menu' }
   | { name: 'game'; session: CreateSessionResponse }
-  | { name: 'end'; session: SessionState }
+  | { name: 'end'; session: SessionState; failedQuestions?: FailedQuestionReview[] }
   | { name: 'leaderboard' }
   | { name: 'admin' };
 
@@ -59,7 +60,7 @@ export function App() {
             key={screen.session.session.id}
             initial={screen.session}
             themes={themes}
-            onEnded={(session) => setScreen({ name: 'end', session })}
+            onEnded={(session, failedQuestions) => setScreen({ name: 'end', session, failedQuestions })}
           />
         </Suspense>
       );
@@ -67,6 +68,7 @@ export function App() {
       return (
         <EndScreen
           session={screen.session}
+          failedQuestions={screen.failedQuestions}
           onReplay={() => void start(lastMode)}
           onLeaderboard={() => setScreen({ name: 'leaderboard' })}
           onMenu={menu}

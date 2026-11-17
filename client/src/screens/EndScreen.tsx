@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { SessionState } from '../api/types';
 import type { HubScore, SessionSummaryWithHub } from '../api/hub-relay';
+import type { FailedQuestionReview } from '../game/useGame';
 import { gameApi } from '../api/endpoints';
 
 interface Props {
   session: SessionState;
+  failedQuestions?: FailedQuestionReview[];
   onReplay: () => void;
   onLeaderboard: () => void;
   onMenu: () => void;
@@ -17,7 +19,17 @@ const TITLES: Record<SessionState['status'], string> = {
   IN_PROGRESS: 'Partie en cours',
 };
 
-export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
+const ZONE_LABELS: Record<number, string> = {
+  1: 'Zone 1 · HTTP',
+  2: 'Zone 2 · REST',
+  3: 'Zone 3 · CORS',
+  4: 'Zone 4 · Auth',
+  5: 'Zone 5 · Failles Web',
+  6: 'Zone 6 · Cache',
+  7: 'Finale · Boss',
+};
+
+export function EndScreen({ session, failedQuestions, onReplay, onLeaderboard, onMenu }: Props) {
   const [summary, setSummary] = useState<SessionSummaryWithHub | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,9 +39,10 @@ export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
 
   const final = summary?.session ?? session;
   const ranked = final.mode === 'NORMAL' && (final.status === 'WON' || final.status === 'LOST');
+  const hasFailed = Boolean(failedQuestions && failedQuestions.length > 0);
 
   return (
-    <main className="panel panel--narrow end">
+    <main className={`panel ${hasFailed ? 'panel--review' : 'panel--narrow'} end`}>
       <h1 className={`title title--${final.status.toLowerCase()}`}>{TITLES[final.status]}</h1>
       <p className="end__score">{final.score} pts</p>
       <dl className="stats">
@@ -56,6 +69,40 @@ export function EndScreen({ session, onReplay, onLeaderboard, onMenu }: Props) {
           {error}
         </p>
       )}
+
+      {hasFailed && (
+        <section className="end__review" aria-labelledby="review-title">
+          <h2 id="review-title" className="end__review-title">
+            Questions à réviser ({failedQuestions!.length})
+          </h2>
+          <p className="end__review-subtitle">Analyse tes erreurs pour consolider tes connaissances :</p>
+          <ul className="review-list">
+            {failedQuestions!.map((q) => (
+              <li key={q.id} className="review-item">
+                <div className="review-item__header">
+                  <span className="review-item__theme">{ZONE_LABELS[q.zone] ?? q.themeSlug.toUpperCase()}</span>
+                  <span className={`badge badge--outcome ${q.outcome === 'TIMEOUT' ? 'badge--timeout' : 'badge--hit'}`}>
+                    {q.outcome === 'TIMEOUT' ? 'Chrono expiré' : 'Bonne réponse abattue'}
+                  </span>
+                </div>
+                <p className="review-item__statement">{q.statement}</p>
+                <div className="review-item__answer">
+                  <strong>Bonne réponse à épargner :</strong> {q.correctAnswerText}
+                </div>
+                <div className="review-item__explanation">
+                  <strong>Explication :</strong> {q.explanation}
+                </div>
+                {q.mdnUrl && (
+                  <a href={q.mdnUrl} target="_blank" rel="noopener noreferrer" className="review-item__mdn">
+                    Consulter la documentation MDN ↗
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <p className="muted">
         {final.mode === 'TRAINING'
           ? 'Partie d’entraînement : hors classement.'
